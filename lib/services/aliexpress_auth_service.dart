@@ -16,9 +16,11 @@ class AliExpressAuthService extends ChangeNotifier {
   String? get error => _error;
 
   /// Verifica o status da autorização AliExpress
-  Future<bool> checkAuthorizationStatus() async {
-    _setLoading(true);
-    _clearError();
+  Future<bool> checkAuthorizationStatus({bool silent = false}) async {
+    if (!silent) {
+      _setLoading(true);
+      _clearError();
+    }
 
     try {
       final response = await http.get(
@@ -37,14 +39,18 @@ class AliExpressAuthService extends ChangeNotifier {
         
         _isAuthorized = hasToken && (tokenValid || tokenRefreshed);
         
-        _setLoading(false);
+        if (!silent) {
+          _setLoading(false);
+        }
         return _isAuthorized;
       } else {
         throw Exception('Erro ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      _setError('Erro ao verificar autorização: $e');
-      _setLoading(false);
+      if (!silent) {
+        _setError('Erro ao verificar autorização: $e');
+        _setLoading(false);
+      }
       return false;
     }
   }

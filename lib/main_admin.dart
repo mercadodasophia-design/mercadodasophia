@@ -138,12 +138,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    _checkAuthorization();
+    // Usar addPostFrameCallback para evitar chamar setState durante o build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAuthorization();
+    });
   }
 
   Future<void> _checkAuthorization() async {
     final authService = Provider.of<AliExpressAuthService>(context, listen: false);
-    final isAuthorized = await authService.checkAuthorizationStatus();
+    final isAuthorized = await authService.checkAuthorizationStatus(silent: true);
     
     if (mounted) {
       if (isAuthorized) {
