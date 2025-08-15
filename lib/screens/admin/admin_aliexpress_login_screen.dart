@@ -17,12 +17,15 @@ class _AdminAliExpressLoginScreenState extends State<AdminAliExpressLoginScreen>
   @override
   void initState() {
     super.initState();
-    _checkAuthorizationOnStart();
+    // Usar addPostFrameCallback para evitar chamar setState durante o build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAuthorizationOnStart();
+    });
   }
 
   Future<void> _checkAuthorizationOnStart() async {
     final authService = Provider.of<AliExpressAuthService>(context, listen: false);
-    final isAuthorized = await authService.checkAuthorizationStatus();
+    final isAuthorized = await authService.checkAuthorizationStatus(silent: true);
     
     if (isAuthorized && mounted) {
       _navigateToDashboard();
