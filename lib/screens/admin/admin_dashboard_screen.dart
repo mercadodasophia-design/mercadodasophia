@@ -65,11 +65,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () {
-            Scaffold.of(context).openDrawer();
-          },
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
         ),
         title: const Text(
           'Painel Administrativo',
@@ -203,6 +205,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/admin/orders');
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.info,
+                  title: 'Status dos Produtos',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/admin/product-status');
                   },
                 ),
                 _buildDrawerItem(
@@ -555,6 +565,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               Icons.category,
               Colors.orange,
               () => Navigator.pushNamed(context, '/admin/categories'),
+            ),
+            _buildActionCard(
+              '🧪 Teste Feed',
+              Icons.rss_feed,
+              Colors.purple,
+              () => Navigator.pushNamed(context, '/admin/feed-test'),
             ),
           ],
         ),

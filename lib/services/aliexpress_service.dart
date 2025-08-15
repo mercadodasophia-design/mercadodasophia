@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'aliexpress_category_mapper.dart';
+import '../models/feed.dart';
 
 class AliExpressService {
   // API principal - Funcionando
@@ -631,5 +632,69 @@ class AliExpressService {
            attributeName.split(' ')
                .map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1).toLowerCase() : word)
                .join(' ');
+  }
+
+  // ===================== FEEDS ALIEXPRESS =====================
+
+  // Obter lista de feeds disponíveis
+  Future<List<Feed>> getAvailableFeeds() async {
+    try {
+      print('📡 Getting available feeds...');
+      
+      final response = await http.get(
+        Uri.parse('$_apiBaseUrl/aliexpress/feeds/list'),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final feeds = (data['feeds'] as List)
+              .map((feed) => Feed.fromJson(feed))
+              .toList();
+          print('✅ Found ${feeds.length} feeds');
+          return feeds;
+        } else {
+          print('❌ API Error: ${data['message']}');
+          throw Exception('API returned error: ${data['message']}');
+        }
+      } else {
+        print('❌ API Error: ${response.statusCode}');
+        throw Exception('HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Get feeds error: $e');
+      throw Exception('Get feeds failed: $e');
+    }
+  }
+
+  // Obter produtos de um feed específico
+  Future<FeedProducts> getFeedProducts(String feedName, {int page = 1}) async {
+    try {
+      print('📦 Getting products from feed: $feedName (page: $page)');
+      
+      final response = await http.get(
+        Uri.parse('$_apiBaseUrl/aliexpress/feeds/$feedName/products?page=$page'),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final feedProducts = FeedProducts.fromJson(data);
+          print('✅ Found ${feedProducts.products.length} products in feed');
+          return feedProducts;
+        } else {
+          print('❌ API Error: ${data['message']}');
+          throw Exception('API returned error: ${data['message']}');
+        }
+      } else {
+        print('❌ API Error: ${response.statusCode}');
+        throw Exception('HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Get feed products error: $e');
+      throw Exception('Get feed products failed: $e');
+    }
   }
 } 

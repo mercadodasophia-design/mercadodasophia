@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class AdminManageProductsScreen extends StatefulWidget {
   const AdminManageProductsScreen({Key? key}) : super(key: key);
@@ -17,6 +19,7 @@ class _AdminManageProductsScreenState extends State<AdminManageProductsScreen>
     'publicados': [],
     'removidos': [],
   };
+  bool _isCheckingStatus = false;
 
   @override
   void initState() {
@@ -423,6 +426,17 @@ class _AdminManageProductsScreenState extends State<AdminManageProductsScreen>
               ],
             ),
           ),
+          if (product['aliexpress_id'] != null && product['aliexpress_id'].toString().isNotEmpty)
+            PopupMenuItem(
+              value: 'check_aliexpress_status',
+              child: Row(
+                children: [
+                  Icon(Icons.info, size: 20),
+                  SizedBox(width: 8),
+                  Text('Verificar Status AliExpress'),
+                ],
+              ),
+            ),
                      PopupMenuItem(
              value: 'unpublish',
              child: Row(
@@ -472,6 +486,70 @@ class _AdminManageProductsScreenState extends State<AdminManageProductsScreen>
     }
 
     return actions;
+  }
+
+  Future<void> _checkAliExpressStatus(String aliexpressId) async {
+    if (aliexpressId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Produto não possui ID do AliExpress'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isCheckingStatus = true;
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse('https://service-api-aliexpress.mercadodasophia.com.br/api/aliexpress/product-status/$aliexpressId'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success']) {
+          final statusData = data['data'];
+          final statusDescription = statusData['status_description'] ?? 'Status desconhecido';
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Status AliExpress: $statusDescription'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erro: ${data['message'] ?? 'Erro desconhecido'}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ${response.statusCode}: ${response.body}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro de conexão: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isCheckingStatus = false;
+      });
+    }
   }
 
   void _handleProductAction(String action, Map<String, dynamic> product) async {

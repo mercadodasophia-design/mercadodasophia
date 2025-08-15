@@ -15,6 +15,7 @@ import 'screens/admin/admin_users_screen.dart';
 import 'screens/admin/admin_sync_settings_screen.dart';
 import 'screens/admin/admin_orders_screen.dart';
 import 'screens/admin/admin_aliexpress_login_screen.dart';
+import 'screens/admin/admin_feed_test_screen.dart';
 import 'services/auth_service.dart';
 import 'services/firebase_product_service.dart';
 import 'services/aliexpress_auth_service.dart';
@@ -76,6 +77,7 @@ class MercadoDaSophiaAdminApp extends StatelessWidget {
           '/admin/users': (context) => const AdminUsersScreen(),
           '/admin/settings': (context) => const AdminSyncSettingsScreen(),
           '/admin/orders': (context) => const AdminOrdersScreen(),
+          '/admin/feed-test': (context) => const AdminFeedTestScreen(),
           // Rotas temporárias para funcionalidades não implementadas
           '/admin/reports': (context) => _buildComingSoonScreen('Relatórios'),
           '/admin/backup': (context) => _buildComingSoonScreen('Backup'),

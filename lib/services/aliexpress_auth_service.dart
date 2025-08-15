@@ -17,27 +17,40 @@ class AliExpressAuthService extends ChangeNotifier {
 
   /// Verifica o status da autorização AliExpress
   Future<bool> checkAuthorizationStatus({bool silent = false}) async {
+    print('🔍 AliExpressAuthService: Iniciando verificação de autorização (silent: $silent)');
+    
     if (!silent) {
       _setLoading(true);
       _clearError();
     }
 
     try {
+      print('🌐 Fazendo requisição para: $_baseUrl/api/aliexpress/tokens/status');
       final response = await http.get(
         Uri.parse('$_baseUrl/api/aliexpress/tokens/status'),
         headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 10));
+
+      print('📡 Status code: ${response.statusCode}');
+      print('📡 Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         _tokenStatus = data;
         
         // Verificar se tem token válido
-        final hasToken = data['has_token'] ?? false;
-        final tokenValid = data['token_valid'] ?? false;
-        final tokenRefreshed = data['token_refreshed'] ?? false;
+        final hasTokens = data['has_tokens'] ?? false;
+        final tokens = data['tokens'] ?? {};
+        final hasAccessToken = tokens['has_access_token'] ?? false;
+        final hasRefreshToken = tokens['has_refresh_token'] ?? false;
         
-        _isAuthorized = hasToken && (tokenValid || tokenRefreshed);
+        _isAuthorized = hasTokens && hasAccessToken;
+        
+        print('🔍 Verificação de tokens:');
+        print('  - hasTokens: $hasTokens');
+        print('  - hasAccessToken: $hasAccessToken');
+        print('  - hasRefreshToken: $hasRefreshToken');
+        print('  - isAuthorized: $_isAuthorized');
         
         if (!silent) {
           _setLoading(false);
@@ -47,6 +60,7 @@ class AliExpressAuthService extends ChangeNotifier {
         throw Exception('Erro ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
+      print('❌ Erro na verificação: $e');
       if (!silent) {
         _setError('Erro ao verificar autorização: $e');
         _setLoading(false);

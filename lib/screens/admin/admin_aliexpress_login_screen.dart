@@ -24,11 +24,18 @@ class _AdminAliExpressLoginScreenState extends State<AdminAliExpressLoginScreen>
   }
 
   Future<void> _checkAuthorizationOnStart() async {
+    print('🔄 Verificando autorização na tela de login...');
     final authService = Provider.of<AliExpressAuthService>(context, listen: false);
     final isAuthorized = await authService.checkAuthorizationStatus(silent: true);
     
+    print('📊 Status da autorização: $isAuthorized');
+    print('📊 Token status: ${authService.tokenStatus}');
+    
     if (isAuthorized && mounted) {
+      print('✅ Autorizado! Redirecionando para dashboard...');
       _navigateToDashboard();
+    } else {
+      print('❌ Não autorizado ou widget não montado');
     }
   }
 
@@ -46,13 +53,15 @@ class _AdminAliExpressLoginScreenState extends State<AdminAliExpressLoginScreen>
           mode: LaunchMode.externalApplication,
         );
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🌐 URL de autorização aberta no navegador. Após fazer login, volte aqui e clique em "Verificar Autorização".'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 5),
-          ),
-        );
+                 if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             const SnackBar(
+               content: Text('🌐 URL de autorização aberta no navegador. Após fazer login, volte aqui e clique em "Verificar Autorização".'),
+               backgroundColor: Colors.green,
+               duration: Duration(seconds: 5),
+             ),
+           );
+         }
         
         // Mostrar botão de verificar após um tempo
         Future.delayed(const Duration(seconds: 3), () {

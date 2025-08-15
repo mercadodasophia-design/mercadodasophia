@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:provider/provider.dart';
 import '../models/product.dart';
+import '../models/feed.dart';
 import '../services/product_service.dart';
 import '../services/auth_service.dart';
+import '../services/aliexpress_service.dart';
 import '../providers/location_provider.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_card_compact.dart';
 import '../widgets/product_card_v2.dart';
 import '../widgets/product_card_web.dart';
+import '../widgets/feed_selector_widget.dart';
+import '../widgets/feed_products_grid.dart';
 import '../widgets/cart_badge.dart';
 import '../theme/app_theme.dart';
 import '../utils/debug_helper.dart';
@@ -37,12 +41,26 @@ class _ProductsScreenState extends State<ProductsScreen> {
   List<Product> filteredProducts = [];
   bool isLoading = true;
   List<String> categories = [];
+  
+  // Variáveis para feeds do AliExpress
+  List<Feed> feeds = [];
+  String selectedFeed = 'top_selling_products';
+  List<Product> feedProducts = [];
+  bool isLoadingFeeds = false;
+  bool isLoadingFeedProducts = false;
+  bool hasMoreFeedProducts = true;
+  int currentFeedPage = 1;
+  
+  // Serviço AliExpress
+  final AliExpressService _aliExpressService = AliExpressService();
 
   @override
   void initState() {
     super.initState();
     _loadProducts();
     _loadCategories();
+    _loadFeeds();
+    _loadFeedProducts();
     _initializeLocation();
     _loadSavedAddress();
   }
@@ -93,6 +111,70 @@ class _ProductsScreenState extends State<ProductsScreen> {
         categories = ['Todos'];
       });
     }
+  }
+
+  // ===================== MÉTODOS PARA FEEDS ALIEXPRESS =====================
+
+  Future<void> _loadFeeds() async {
+    setState(() {
+      isLoadingFeeds = true;
+    });
+    
+    try {
+      final loadedFeeds = await _aliExpressService.getAvailableFeeds();
+      setState(() {
+        feeds = loadedFeeds;
+        isLoadingFeeds = false;
+      });
+    } catch (e) {
+      print('Erro ao carregar feeds: $e');
+      setState(() {
+        isLoadingFeeds = false;
+      });
+    }
+  }
+
+  Future<void> _loadFeedProducts({bool refresh = false}) async {
+    if (isLoadingFeedProducts) return;
+
+    setState(() {
+      isLoadingFeedProducts = true;
+    });
+
+    try {
+      if (refresh) {
+        currentFeedPage = 1;
+        feedProducts.clear();
+      }
+
+      final feedProductsData = await _aliExpressService.getFeedProducts(
+        selectedFeed,
+        page: currentFeedPage,
+      );
+
+      setState(() {
+        if (refresh) {
+          feedProducts = feedProductsData.products;
+        } else {
+          feedProducts.addAll(feedProductsData.products);
+        }
+        hasMoreFeedProducts = feedProductsData.pagination.hasNext;
+        currentFeedPage++;
+        isLoadingFeedProducts = false;
+      });
+    } catch (e) {
+      print('Erro ao carregar produtos do feed: $e');
+      setState(() {
+        isLoadingFeedProducts = false;
+      });
+    }
+  }
+
+  void _onFeedSelected(String feedName) {
+    setState(() {
+      selectedFeed = feedName;
+    });
+    _loadFeedProducts(refresh: true);
   }
 
   void _filterProducts() {
@@ -216,7 +298,47 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        // Grid de produtos
+                        // Seção de Feeds do AliExpress
+                        if (feeds.isNotEmpty)
+                          FeedSelectorWidget(
+                            feeds: feeds,
+                            selectedFeed: selectedFeed,
+                            onFeedSelected: _onFeedSelected,
+                          ),
+                        
+                        // Grid de produtos dos feeds
+                        if (feeds.isNotEmpty)
+                          FeedProductsGrid(
+                            products: feedProducts,
+                            isLoading: isLoadingFeedProducts,
+                            hasMore: hasMoreFeedProducts,
+                            onLoadMore: () => _loadFeedProducts(),
+                          ),
+                        
+                        // Separador entre feeds e produtos locais
+                        if (feeds.isNotEmpty && filteredProducts.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.symmetric(vertical: 24),
+                            child: Row(
+                              children: [
+                                Expanded(child: Divider(color: Colors.grey[300])),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  child: Text(
+                                    'Produtos da Loja',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey[700],
+                                    ),
+                                  ),
+                                ),
+                                Expanded(child: Divider(color: Colors.grey[300])),
+                              ],
+                            ),
+                          ),
+                        
+                        // Grid de produtos locais
                         if (isLoading)
                           kIsWeb 
                             ? _buildWebLoadingSection()
