@@ -57,7 +57,7 @@ class MercadoDaSophiaAdminApp extends StatelessWidget {
         routes: {
           '/admin_aliexpress_login': (context) => const AdminAliExpressLoginScreen(),
           '/admin_dashboard': (context) => const AdminDashboardScreen(),
-          '/admin_products': (context) => const AdminProductsScreen(),
+          '/admin_products': (context) => const AdminManageProductsScreen(),
           '/admin/authorizations': (context) => const AdminAuthorizationsScreen(),
           '/admin/aliexpress': (context) => const AdminAliExpressSearchScreen(),
           '/admin/imported-products': (context) => const AdminImportedProductsScreen(),

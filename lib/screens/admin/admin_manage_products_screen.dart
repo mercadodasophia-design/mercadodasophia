@@ -363,7 +363,7 @@ class _AdminManageProductsScreenState extends State<AdminManageProductsScreen>
               // Menu de ações
               PopupMenuButton<String>(
                 onSelected: (value) => _handleProductAction(value, product),
-                itemBuilder: (context) => _buildProductActions(status),
+                itemBuilder: (context) => _buildProductActions(status, product),
                 child: Icon(
                   Icons.more_vert,
                   color: Colors.grey[600],
@@ -376,7 +376,7 @@ class _AdminManageProductsScreenState extends State<AdminManageProductsScreen>
     );
   }
 
-  List<PopupMenuEntry<String>> _buildProductActions(String status) {
+  List<PopupMenuEntry<String>> _buildProductActions(String status, Map<String, dynamic> product) {
     final actions = <PopupMenuEntry<String>>[];
 
     switch (status) {

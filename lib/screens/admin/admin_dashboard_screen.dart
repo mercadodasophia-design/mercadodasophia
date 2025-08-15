@@ -558,7 +558,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               'Gerenciar Produtos',
               Icons.inventory,
               Colors.green,
-              () => Navigator.pushNamed(context, '/admin/products'),
+              () => Navigator.pushNamed(context, '/admin_products'),
             ),
             _buildActionCard(
               'Categorias',
