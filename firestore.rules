@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Usuários podem ler/escrever seus próprios dados
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Produtos: leitura pública, escrita apenas para usuários autenticados
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Categorias: leitura pública, escrita apenas para usuários autenticados
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Pedidos: usuários só podem acessar seus próprios pedidos
+    match /orders/{orderId} {
+      allow read, write: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // Carrinho: usuários só podem acessar seu próprio carrinho
+    match /carts/{cartId} {
+      allow read, write: if request.auth != null && 
+        cartId == request.auth.uid;
+    }
+    
+    // Favoritos: usuários só podem acessar seus próprios favoritos
+    match /favorites/{favoriteId} {
+      allow read, write: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+  }
+} 

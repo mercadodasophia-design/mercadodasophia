@@ -1,0 +1,23 @@
+agora abaixo do preco vamos ter a sessao de logica de adicionar ao carrinho
+olhan a logica que quero
+
+para produtos que tem apenas a cor como opção
+
+[cor] [cor] [cor] - "opcoes de cor sendo uma bolinha com a cor correspondente"
+
+  -        |       +
+[ ADICIONAR ]
+
+PARA PRODUTOS COM OPCAO DE TAMANHO DE ROUPA
+
+[ P ] [ M ] [ G ] [ GG ] 
+
+    -        |       +
+  [ ADICIONAR ]
+
+para produtos que tem varios conjuntos
+
+[foto do conjunto 1] [ foto do conjunto 2] "miniaturas de fotos do kit"
+
+  -        |       +
+[ ADICIONAR ]

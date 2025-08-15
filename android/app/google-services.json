@@ -1,0 +1,100 @@
+{
+  "project_info": {
+    "project_number": "984078143510",
+    "project_id": "mercadodasophia-bbd01",
+    "storage_bucket": "mercadodasophia-bbd01.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:984078143510:android:80b49c822f8f2d77bfa537",
+        "android_client_info": {
+          "package_name": "com.mercadodasophia.client"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "984078143510-119mv87lr39n6d9t3d1i81631cgctfa1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mercadodasophia.client",
+            "certificate_hash": "b74662dc11dd5e50d5ba87e2d768327153e598fe"
+          }
+        },
+        {
+          "client_id": "984078143510-sn4g7j6ga67f1clvpl0ipdub96obblfh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mercadodasophia.client",
+            "certificate_hash": "8c42da0fc42d4bc8084a12e4e77b356cbc7c8777"
+          }
+        },
+        {
+          "client_id": "984078143510-fde3jsncdjium6ksojom6rgikaor9alb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDFs8K2gQGhKNSHUNZeCZII1YJbzwlncvQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "984078143510-fde3jsncdjium6ksojom6rgikaor9alb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:984078143510:android:80b49c822f8f2d77bfa537",
+        "android_client_info": {
+          "package_name": "com.mercadodasophia.admin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "984078143510-119mv87lr39n6d9t3d1i81631cgctfa1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mercadodasophia.admin",
+            "certificate_hash": "b74662dc11dd5e50d5ba87e2d768327153e598fe"
+          }
+        },
+        {
+          "client_id": "984078143510-sn4g7j6ga67f1clvpl0ipdub96obblfh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mercadodasophia.admin",
+            "certificate_hash": "8c42da0fc42d4bc8084a12e4e77b356cbc7c8777"
+          }
+        },
+        {
+          "client_id": "984078143510-fde3jsncdjium6ksojom6rgikaor9alb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDFs8K2gQGhKNSHUNZeCZII1YJbzwlncvQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "984078143510-fde3jsncdjium6ksojom6rgikaor9alb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
