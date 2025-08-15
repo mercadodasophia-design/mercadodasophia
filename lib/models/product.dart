@@ -21,6 +21,7 @@ class Product {
   final double? length; // Comprimento em cm
   final double? height; // Altura em cm
   final double? width; // Largura em cm
+  final Map<String, dynamic>? freightInfo; // Informações de frete do AliExpress
 
   Product({
     required this.id,
@@ -39,6 +40,7 @@ class Product {
     this.length,
     this.height,
     this.width,
+    this.freightInfo,
   }) : hasVariations = variations.isNotEmpty;
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -116,6 +118,7 @@ class Product {
       length: _parseDouble(data['length']),
       height: _parseDouble(data['height']),
       width: _parseDouble(data['width']),
+      freightInfo: data['freight_info'] as Map<String, dynamic>? ?? data['freightInfo'] as Map<String, dynamic>?,
     );
   }
 
@@ -155,6 +158,7 @@ class Product {
       length: _parseDouble(data['length']),
       height: _parseDouble(data['height']),
       width: _parseDouble(data['width']),
+      freightInfo: data['freight_info'] as Map<String, dynamic>? ?? data['freightInfo'] as Map<String, dynamic>?,
     );
   }
 

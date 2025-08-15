@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/shipping_service.dart';
+import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../services/auth_service.dart';
 import '../models/product.dart';
 import '../theme/app_theme.dart';
 
@@ -20,7 +23,6 @@ class ShippingCalculatorWidget extends StatefulWidget {
 }
 
 class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
-  final ShippingService _shippingService = ShippingService();
   final TextEditingController _cepController = TextEditingController();
   
   bool _isLoading = false;
@@ -28,11 +30,13 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
   Map<String, dynamic>? _shippingData;
   String? _selectedService;
   String? _userCep;
+  bool _isUserLoggedIn = false;
+  String? _userAddress;
 
   @override
   void initState() {
     super.initState();
-    _loadUserCep();
+    _checkUserStatus();
   }
 
   @override
@@ -41,31 +45,243 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
     super.dispose();
   }
 
-  Future<void> _loadUserCep() async {
-    try {
-      final cep = await _shippingService.getUserCep();
-      if (cep != null) {
-        setState(() {
-          _userCep = cep;
-          _cepController.text = cep;
-        });
-        // Calcular frete automaticamente se o usuário tem CEP salvo
-        await _calculateShipping();
-      }
-    } catch (e) {
-      print('Erro ao carregar CEP do usuário: $e');
+  void _checkUserStatus() {
+    final authService = context.read<AuthService>();
+    final isLoggedIn = authService.isAuthenticated;
+    
+    setState(() {
+      _isUserLoggedIn = isLoggedIn;
+    });
+    
+    if (isLoggedIn) {
+      _loadUserAddress();
     }
   }
 
+  Future<void> _loadUserAddress() async {
+    try {
+      // Simular carregamento do endereço do usuário logado
+      // Em uma implementação real, isso viria do Firestore
+      setState(() {
+        _userAddress = 'Rua das Flores, 123 - Centro, São Paulo - SP';
+        _userCep = '01234-567';
+        _cepController.text = _userCep!;
+      });
+      
+      // Calcular frete real para usuário logado
+      await _calculateShipping();
+    } catch (e) {
+      print('Erro ao carregar endereço do usuário: $e');
+    }
+  }
+
+
+
+  // Buscar cotação atual do dólar
+  Future<double> _getDollarRate() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://economia.awesomeapi.com.br/json/last/USD-BRL'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final usdBrl = data['USDBRL'];
+        final ask = double.tryParse(usdBrl['ask'] ?? '5.2') ?? 5.2;
+        print('💱 Cotação do dólar: R\$ $ask');
+        return ask;
+      } else {
+        print('⚠️ Erro ao buscar cotação do dólar: ${response.statusCode}');
+        return 5.2; // Valor padrão se falhar
+      }
+    } catch (e) {
+      print('❌ Erro ao buscar cotação do dólar: $e');
+      return 5.2; // Valor padrão se falhar
+    }
+  }
+
+  Future<void> _simulateShippingCalculation() async {
+    print('🚀 _simulateShippingCalculation() iniciado');
+    
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _shippingData = null;
+    });
+
+    // Simular delay de carregamento
+    await Future.delayed(const Duration(seconds: 1));
+    print('⏱️ Delay concluído, verificando frete...');
+
+    // Verificar se o produto tem frete gratuito (freightInfo nulo)
+    bool hasFreeShipping = widget.product.freightInfo == null || 
+                          widget.product.freightInfo!.isEmpty ||
+                          widget.product.freightInfo!['value'] == null ||
+                          widget.product.freightInfo!['value'] == 0.0;
+
+    if (hasFreeShipping) {
+      // Frete gratuito
+      print('🚢 Frete Grátis - produto tem freightInfo nulo ou valor zero');
+      
+      final simulatedData = {
+        'success': true,
+        'address': {
+          'logradouro': 'Rua das Flores',
+          'bairro': 'Centro',
+          'localidade': 'São Paulo',
+          'uf': 'SP',
+        },
+        'shipping': [
+          {
+            'service_code': 'FREE_SHIPPING',
+            'service_name': 'Frete Grátis',
+            'price': 0.0,
+            'estimated_days': 12,
+            'carrier': 'Correios',
+          },
+        ],
+      };
+
+      setState(() {
+        _isLoading = false;
+        _shippingData = simulatedData;
+        _selectedService = 'FREE_SHIPPING';
+        widget.onShippingSelected(0.0);
+      });
+      return;
+    }
+
+    // Tentar obter o valor do frete do produto importado (em USD)
+    double? shippingPriceUSD;
+    
+    // Verificar se o produto tem informações de frete salvas
+    print('🔍 Verificando freightInfo do produto...');
+    print('🔍 freightInfo: ${widget.product.freightInfo}');
+    
+    if (widget.product.freightInfo != null) {
+      try {
+        final freightData = widget.product.freightInfo!;
+        print('🔍 freightData keys: ${freightData.keys.toList()}');
+        
+        // Tentar diferentes formatos de dados de frete
+        if (freightData['value'] != null) {
+          shippingPriceUSD = (freightData['value'] as num).toDouble();
+          print('🔍 preço encontrado em freightData[value]: $shippingPriceUSD');
+        } else if (freightData['freight_options'] != null) {
+          final options = freightData['freight_options'] as List<dynamic>;
+          print('🔍 freight_options encontradas: ${options.length}');
+          
+          if (options.isNotEmpty) {
+            final firstOption = options.first;
+            print('🔍 primeira opção: $firstOption');
+            
+            final price = firstOption['price'];
+            print('🔍 preço extraído: $price (tipo: ${price.runtimeType})');
+            
+            if (price != null) {
+              shippingPriceUSD = double.tryParse(price.toString()) ?? 0.67;
+              print('🔍 preço convertido para USD: $shippingPriceUSD');
+            }
+          }
+        } else {
+          print('⚠️ Nenhum formato de frete encontrado no freightData');
+        }
+      } catch (e) {
+        print('❌ Erro ao extrair preço do frete: $e');
+      }
+    } else {
+      print('⚠️ freightInfo é null');
+    }
+
+    // Se não temos valor de frete, usar frete gratuito
+    if (shippingPriceUSD == null) {
+      print('❌ Não há valor de frete disponível - aplicando frete gratuito');
+      final simulatedData = {
+        'success': true,
+        'address': {
+          'logradouro': 'Rua das Flores',
+          'bairro': 'Centro',
+          'localidade': 'São Paulo',
+          'uf': 'SP',
+        },
+        'shipping': [
+          {
+            'service_code': 'FREE_SHIPPING',
+            'service_name': 'Frete Grátis',
+            'price': 0.0,
+            'estimated_days': 12,
+            'carrier': 'Correios',
+          },
+        ],
+      };
+
+      setState(() {
+        _isLoading = false;
+        _shippingData = simulatedData;
+        _selectedService = 'FREE_SHIPPING';
+        widget.onShippingSelected(0.0);
+      });
+      return;
+    }
+
+    // Buscar cotação atual do dólar e converter para BRL
+    final dollarRate = await _getDollarRate();
+    final shippingPriceBRL = shippingPriceUSD * dollarRate;
+    
+    print('🚢 Frete USD: \$${shippingPriceUSD.toStringAsFixed(2)}');
+    print('💱 Cotação: R\$ ${dollarRate.toStringAsFixed(2)}');
+    print('🚢 Frete BRL: R\$ ${shippingPriceBRL.toStringAsFixed(2)}');
+
+    // Simular dados de frete com apenas um tipo de envio padrão
+    final simulatedData = {
+      'success': true,
+      'address': {
+        'logradouro': 'Rua das Flores',
+        'bairro': 'Centro',
+        'localidade': 'São Paulo',
+        'uf': 'SP',
+      },
+      'shipping': [
+        {
+          'service_code': 'OWN_ECONOMY',
+          'service_name': 'Entrega Padrão',
+          'price': shippingPriceBRL,
+          'estimated_days': 12,
+          'carrier': 'Correios',
+        },
+      ],
+    };
+
+    setState(() {
+      _isLoading = false;
+      _shippingData = simulatedData;
+      // Selecionar automaticamente o serviço padrão
+      final shippingOptions = simulatedData['shipping'] as List<dynamic>?;
+      if (shippingOptions != null && shippingOptions.isNotEmpty) {
+        final firstOption = shippingOptions.first;
+        _selectedService = firstOption['service_code'] ?? 'OWN_ECONOMY';
+        final price = firstOption['price'] ?? 0.0;
+        widget.onShippingSelected(price);
+      }
+    });
+  }
+
   Future<void> _calculateShipping() async {
+    print('🚀 _calculateShipping() chamado');
+    
     final cep = _cepController.text.trim();
+    print('📝 CEP digitado: "$cep"');
+    
     if (cep.isEmpty) {
+      print('❌ CEP vazio');
       setState(() {
         _error = 'Digite um CEP válido';
       });
       return;
     }
 
+    print('✅ CEP válido, iniciando cálculo...');
     setState(() {
       _isLoading = true;
       _error = null;
@@ -73,28 +289,10 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
     });
 
     try {
-      final result = await _shippingService.calculateShipping(
-        product: widget.product,
-        cep: cep,
-      );
-
-             setState(() {
-         _isLoading = false;
-         if (result['success']) {
-           _shippingData = result;
-           // Selecionar automaticamente o primeiro serviço disponível
-           final shippingOptions = result['shipping'] as List<dynamic>?;
-           if (shippingOptions != null && shippingOptions.isNotEmpty) {
-             final firstOption = shippingOptions.first;
-             _selectedService = firstOption['service_code'] ?? 'OWN_ECONOMY';
-             final price = firstOption['price'] ?? 0.0;
-             widget.onShippingSelected(price);
-           }
-         } else {
-           _error = result['error'] ?? 'Erro ao calcular frete';
-         }
-       });
+      // Sempre usar simulação com valor real do AliExpress (tanto para logados quanto não logados)
+      await _simulateShippingCalculation();
     } catch (e) {
+      print('❌ Erro no _calculateShipping: $e');
       setState(() {
         _isLoading = false;
         _error = 'Erro ao calcular frete: $e';
@@ -130,9 +328,9 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
                 size: 24,
               ),
               const SizedBox(width: 12),
-              const Text(
-                'Calcular Frete',
-                style: TextStyle(
+              Text(
+                _isUserLoggedIn ? 'Endereço de Entrega' : 'Calcular Frete',
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
@@ -142,51 +340,12 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
           ),
           const SizedBox(height: 16),
 
-          // Campo CEP
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _cepController,
-                  decoration: InputDecoration(
-                    labelText: 'CEP',
-                    hintText: '00000-000',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    prefixIcon: const Icon(Icons.location_on),
-                  ),
-                  keyboardType: TextInputType.number,
-                  maxLength: 9,
-                  inputFormatters: [
-                    // Formatar CEP
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(8),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _calculateShipping,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text('Calcular'),
-              ),
-            ],
-          ),
+          // Interface diferente baseada no status de login
+          if (_isUserLoggedIn) ...[
+            _buildLoggedInUserInterface(),
+          ] else ...[
+            _buildGuestUserInterface(),
+          ],
 
           // Erro
           if (_error != null) ...[
@@ -380,13 +539,13 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
                       color: isSelected ? AppTheme.primaryColor : Colors.black87,
                     ),
                   ),
-                                     Text(
-                     'Entrega em $deliveryTime dias úteis',
-                     style: TextStyle(
-                       fontSize: 14,
-                       color: Colors.grey[600],
-                     ),
-                   ),
+                                                       Text(
+                    _calculateDeliveryDates(deliveryTime),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
                    if (carrier != null && carrier.isNotEmpty) ...[
                      Text(
                        'Via $carrier',
@@ -424,6 +583,171 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
     ].where((part) => part != null && part.isNotEmpty).toList();
     
     return parts.join(', ');
+  }
+
+  Widget _buildLoggedInUserInterface() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Endereço do usuário logado
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue[200]!),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.home, color: Colors.blue[600], size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Endereço Cadastrado:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    Text(
+                      _userAddress ?? 'Carregando...',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        // Botão para calcular frete
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : () {
+              print('🔘 Botão Calcular Frete clicado!');
+              print('📊 Estado _isLoading: $_isLoading');
+              _calculateShipping();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text('Calcular Frete'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGuestUserInterface() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Campo CEP para usuário não logado
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _cepController,
+                decoration: InputDecoration(
+                  labelText: 'CEP',
+                  hintText: '00000-000',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  prefixIcon: const Icon(Icons.location_on),
+                ),
+                keyboardType: TextInputType.number,
+                maxLength: 9,
+                inputFormatters: [
+                  // Formatar CEP
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(8),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: _isLoading ? null : () {
+                print('🔘 Botão Calcular (usuário não logado) clicado!');
+                print('📊 Estado _isLoading: $_isLoading');
+                _calculateShipping();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text('Calcular'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Calcular datas de entrega
+  String _calculateDeliveryDates(int estimatedDays) {
+    final now = DateTime.now();
+    final startDate = now.add(Duration(days: 12)); // Mínimo 12 dias
+    final endDate = now.add(Duration(days: 28));   // Máximo 28 dias
+    
+    final startDay = startDate.day;
+    final startMonth = _getMonthName(startDate.month);
+    final startYear = startDate.year;
+    
+    final endDay = endDate.day;
+    final endMonth = _getMonthName(endDate.month);
+    final endYear = endDate.year;
+    
+    if (startYear == endYear) {
+      if (startMonth == endMonth) {
+        return 'Entrega em $startDay até $endDay de $startMonth de $startYear';
+      } else {
+        return 'Entrega em $startDay de $startMonth até $endDay de $endMonth de $startYear';
+      }
+    } else {
+      return 'Entrega em $startDay de $startMonth de $startYear até $endDay de $endMonth de $endYear';
+    }
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+    ];
+    return months[month - 1];
   }
 
   // Parsear tempo de entrega

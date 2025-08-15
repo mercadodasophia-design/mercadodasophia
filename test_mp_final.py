@@ -8,7 +8,7 @@ def test_mercadopago_integration():
     
     # 1. Testar debug primeiro
     print("🔍 1. Testando debug do Mercado Pago...")
-    debug_url = "https://mercadodasophia-api.onrender.com/api/payment/mp/debug"
+    debug_url = "https://service-api-aliexpress.mercadodasophia.com.br/api/payment/mp/debug"
     
     try:
         response = requests.get(debug_url, timeout=30)
@@ -27,7 +27,7 @@ def test_mercadopago_integration():
     
     # 2. Testar criação de preferência via endpoint direto
     print("\n🔍 2. Testando criação de preferência (endpoint direto)...")
-    preference_url = "https://mercadodasophia-api.onrender.com/api/payment/mp/create-preference"
+    preference_url = "https://service-api-aliexpress.mercadodasophia.com.br/api/payment/mp/create-preference"
     
     # Payload correto para o endpoint direto
     preference_payload = {
@@ -72,7 +72,7 @@ def test_mercadopago_integration():
     
     # 3. Testar fluxo de pagamento integrado
     print("\n🔍 3. Testando fluxo de pagamento integrado...")
-    payment_url = "https://mercadodasophia-api.onrender.com/api/payment/process"
+    payment_url = "https://service-api-aliexpress.mercadodasophia.com.br/api/payment/process"
     
     # Payload para o fluxo integrado (que inclui order_id)
     payment_payload = {

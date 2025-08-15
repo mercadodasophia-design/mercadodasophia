@@ -13,8 +13,11 @@ import 'screens/admin/admin_product_edit_screen.dart';
 import 'screens/admin/admin_categories_screen.dart';
 import 'screens/admin/admin_users_screen.dart';
 import 'screens/admin/admin_sync_settings_screen.dart';
+import 'screens/admin/admin_orders_screen.dart';
+import 'screens/admin/admin_aliexpress_login_screen.dart';
 import 'services/auth_service.dart';
 import 'services/firebase_product_service.dart';
+import 'services/aliexpress_auth_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -38,6 +41,9 @@ class MercadoDaSophiaAdminApp extends StatelessWidget {
         ChangeNotifierProvider<AuthService>(
           create: (_) => AuthService(),
         ),
+        ChangeNotifierProvider<AliExpressAuthService>(
+          create: (_) => AliExpressAuthService(),
+        ),
         Provider<FirebaseProductService>(
           create: (_) => FirebaseProductService(),
         ),
@@ -48,6 +54,7 @@ class MercadoDaSophiaAdminApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         home: const AuthWrapper(),
         routes: {
+          '/admin_aliexpress_login': (context) => const AdminAliExpressLoginScreen(),
           '/admin_dashboard': (context) => const AdminDashboardScreen(),
           '/admin_products': (context) => const AdminProductsScreen(),
           '/admin/authorizations': (context) => const AdminAuthorizationsScreen(),
@@ -68,6 +75,7 @@ class MercadoDaSophiaAdminApp extends StatelessWidget {
           '/admin/categories': (context) => const AdminCategoriesScreen(),
           '/admin/users': (context) => const AdminUsersScreen(),
           '/admin/settings': (context) => const AdminSyncSettingsScreen(),
+          '/admin/orders': (context) => const AdminOrdersScreen(),
           // Rotas temporárias para funcionalidades não implementadas
           '/admin/reports': (context) => _buildComingSoonScreen('Relatórios'),
           '/admin/backup': (context) => _buildComingSoonScreen('Backup'),
@@ -119,12 +127,48 @@ class MercadoDaSophiaAdminApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
   @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthorization();
+  }
+
+  Future<void> _checkAuthorization() async {
+    final authService = Provider.of<AliExpressAuthService>(context, listen: false);
+    final isAuthorized = await authService.checkAuthorizationStatus();
+    
+    if (mounted) {
+      if (isAuthorized) {
+        // Se já está autorizado, vai para o dashboard
+        Navigator.of(context).pushReplacementNamed('/admin_dashboard');
+      } else {
+        // Se não está autorizado, vai para a tela de login AliExpress
+        Navigator.of(context).pushReplacementNamed('/admin_aliexpress_login');
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Removida verificação de login - vai direto para o dashboard
-    return const AdminDashboardScreen();
+    return const Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Verificando autorização...'),
+          ],
+        ),
+      ),
+    );
   }
 } 

@@ -7,7 +7,7 @@ def test_mp_create_preference():
     """Testar endpoint direto de criação de preferência"""
     print("🔍 Testando /api/payment/mp/create-preference...")
     
-    url = "https://mercadodasophia-api.onrender.com/api/payment/mp/create-preference"
+    url = "https://service-api-aliexpress.mercadodasophia.com.br/api/payment/mp/create-preference"
     
     # Payload correto conforme código do servidor
     payload = {
@@ -43,7 +43,7 @@ def test_mp_process_payment():
     """Testar fluxo integrado de pagamento"""
     print("\n🔍 Testando /api/payment/process...")
     
-    url = "https://mercadodasophia-api.onrender.com/api/payment/process"
+    url = "https://service-api-aliexpress.mercadodasophia.com.br/api/payment/process"
     
     # Payload correto conforme código do servidor
     payload = {
@@ -91,7 +91,7 @@ def test_mp_debug():
     """Testar debug do Mercado Pago"""
     print("\n🔍 Testando /api/payment/mp/debug...")
     
-    url = "https://mercadodasophia-api.onrender.com/api/payment/mp/debug"
+    url = "https://service-api-aliexpress.mercadodasophia.com.br/api/payment/mp/debug"
     
     try:
         response = requests.get(url, timeout=30)

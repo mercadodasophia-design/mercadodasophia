@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ProductDetailService {
-  static const String baseUrl = 'https://mercadodasophia-api.onrender.com';
+  static const String baseUrl = 'https://service-api-aliexpress.mercadodasophia.com.br';
 
   /// Buscar detalhes completos de um produto
   static Future<Map<String, dynamic>> getCompleteProductDetails(String itemId) async {

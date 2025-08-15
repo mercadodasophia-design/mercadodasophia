@@ -47,7 +47,7 @@ flutter run -d chrome --flavor admin --target lib/main_admin.dart
 
 ### **Produção**
 - **Admin Web**: https://mercadodasophia-bbd01.web.app
-- **API Python**: https://mercadodasophia-api.onrender.com
+- **API Python**: https://service-api-aliexpress.mercadodasophia.com.br
 
 ### **Desenvolvimento**
 - **Local**: http://localhost:8000 (após build)
@@ -71,7 +71,7 @@ FIREBASE_PROJECT_ID=mercadodasophia-bbd01
 GOOGLE_CLIENT_ID=984078143510-fde3jsncdjium6ksojom6rgikaor9alb.apps.googleusercontent.com
 
 # API Python
-API_BASE_URL=https://mercadodasophia-api.onrender.com
+API_BASE_URL=https://service-api-aliexpress.mercadodasophia.com.br
 ```
 
 ## 📱 **Compatibilidade**

@@ -859,7 +859,6 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-                _buildInfoRow('SKU ID', skuId.toString()),
           Row(
             children: [
                     SizedBox(

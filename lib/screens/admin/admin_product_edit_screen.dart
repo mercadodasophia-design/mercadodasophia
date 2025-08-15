@@ -1619,16 +1619,6 @@ class _AdminProductEditScreenState extends State<AdminProductEditScreen> {
                   children: [
                     Row(
                       children: [
-                        const Text(
-                          'SKU ID: ',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        Text(skuId),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
                         SizedBox(
                           width: 120,
                           child: Text(

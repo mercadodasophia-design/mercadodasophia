@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
+import '../services/payment_service.dart';
+import '../providers/cart_provider.dart';
+import '../providers/address_provider.dart';
 import '../theme/app_theme.dart';
 import 'client_login_screen.dart';
 
@@ -14,6 +18,8 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _isLoading = true;
   bool _isLoggedIn = false;
+  String _selectedPaymentMethod = 'pix';
+  bool _isProcessingOrder = false;
 
   @override
   void initState() {
@@ -53,206 +59,232 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
     }
 
-    if (!_isLoggedIn) {
-      return const Scaffold(
-        body: Center(
-          child: Text('Redirecionando para login...'),
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Finalizar Compra'),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Resumo do pedido
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Resumo do Pedido',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // Produtos (exemplo)
-                    _buildOrderItem('Produto Exemplo 1', 'R\$ 29,90', 1),
-                    _buildOrderItem('Produto Exemplo 2', 'R\$ 45,50', 2),
-                    
-                    const Divider(),
-                    
-                    // Totais
-                    _buildTotalRow('Subtotal:', 'R\$ 120,90'),
-                    _buildTotalRow('Frete:', 'R\$ 15,00'),
-                    const Divider(),
-                    _buildTotalRow('Total:', 'R\$ 135,90', isTotal: true),
-                  ],
-                ),
+      body: Consumer<CartProvider>(
+        builder: (context, cartProvider, child) {
+          if (cartProvider.items.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'Seu carrinho está vazio',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Adicione produtos para continuar',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
               ),
-            ),
-            
-                    const SizedBox(height: 24),
-                    
-            // Dados de entrega
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                        children: [
-                        const Icon(Icons.location_on, color: AppTheme.primaryColor),
-                          const SizedBox(width: 8),
+            );
+          }
+
+          final subtotal = cartProvider.totalPrice;
+          final shipping = cartProvider.shippingCost;
+          final total = subtotal + shipping;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Resumo do pedido
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         const Text(
-                          'Endereço de Entrega',
-                              style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () {
-                            // TODO: Implementar edição de endereço
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Editar endereço em desenvolvimento'),
-                              ),
-                            );
-                          },
-                          child: const Text('Editar'),
-                          ),
-                        ],
-                      ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Rua das Flores, 123 - Apto 45\nCentro, São Paulo/SP\nCEP: 01234-567',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Forma de pagamento
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-                        const Icon(Icons.payment, color: AppTheme.primaryColor),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Forma de Pagamento',
+                          'Resumo do Pedido',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () {
-                            // TODO: Implementar seleção de pagamento
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Seleção de pagamento em desenvolvimento'),
-                              ),
-                            );
-                          },
-                          child: const Text('Alterar'),
-            ),
-          ],
-        ),
-                    const SizedBox(height: 12),
-        Row(
-          children: [
-                        const Icon(Icons.pix, color: Colors.green),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Pix',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            'Recomendado',
-                            style: TextStyle(color: Colors.white, fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-      ],
-                  ),
-                ),
-              ),
-            
-            const SizedBox(height: 32),
-            
-            // Botão finalizar compra
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Implementar finalização da compra
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Finalização da compra em desenvolvimento'),
-                      backgroundColor: AppTheme.successColor,
-                    ),
-                  );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.primaryColor,
-            foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text(
-                  'Finalizar Compra - R\$ 135,90',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-            
-            const SizedBox(height: 16),
-            
-            // Termos
-            const Text(
-              'Ao finalizar a compra, você concorda com nossos Termos de Uso e Política de Privacidade.',
-                            style: TextStyle(
-                              fontSize: 12,
-                color: Colors.grey,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Lista de produtos
+                        ...cartProvider.items.map((item) => _buildOrderItem(
+                          item.product.name,
+                          'R\$ ${item.totalPrice.toStringAsFixed(2)}',
+                          item.quantity,
+                        )),
+                        
+                        const Divider(),
+                        
+                        // Totais
+                        _buildTotalRow('Subtotal:', 'R\$ ${subtotal.toStringAsFixed(2)}'),
+                        _buildTotalRow('Frete:', 'R\$ ${shipping.toStringAsFixed(2)}'),
+                        const Divider(),
+                        _buildTotalRow('Total:', 'R\$ ${total.toStringAsFixed(2)}', isTotal: true),
                       ],
                     ),
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Dados de entrega
+                Consumer<AddressProvider>(
+                  builder: (context, addressProvider, child) {
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.location_on, color: AppTheme.primaryColor),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Endereço de Entrega',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const Spacer(),
+                                if (addressProvider.hasAddress)
+                                  TextButton(
+                                    onPressed: () => _showAddressDialog(context),
+                                    child: const Text('Alterar'),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            
+                            if (addressProvider.hasAddress) ...[
+                              Text(
+                                addressProvider.fullAddress ?? '',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildShippingSection(context),
+                            ] else ...[
+                              _buildCepInputSection(context),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Forma de pagamento
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.payment, color: AppTheme.primaryColor),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Forma de Pagamento',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Spacer(),
+                            TextButton(
+                              onPressed: () => _showPaymentMethodDialog(),
+                              child: const Text('Alterar'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _buildPaymentMethodOption(),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 32),
+                
+                // Botão finalizar compra
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isProcessingOrder ? null : () => _processOrder(cartProvider),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _isProcessingOrder
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            _isLoggedIn 
+                                ? 'Finalizar Compra - R\$ ${total.toStringAsFixed(2)}'
+                                : 'Fazer Login para Finalizar',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                  ),
+                ),
+                
+                if (!_isLoggedIn) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/login');
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Já tenho uma conta',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ],
+                
+                const SizedBox(height: 16),
+                
+                // Termos
+                const Text(
+                  'Ao finalizar a compra, você concorda com nossos Termos de Uso e Política de Privacidade.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -260,15 +292,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget _buildOrderItem(String name, String price, int quantity) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                Expanded(
+      child: Row(
+        children: [
+          Expanded(
             child: Text(
               '$name x$quantity',
               style: const TextStyle(fontSize: 16),
-                        ),
-                      ),
-                      Text(
+            ),
+          ),
+          Text(
             price,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
@@ -281,25 +313,410 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-                    children: [
-                      Text(
+        children: [
+          Text(
             label,
-                        style: TextStyle(
+            style: TextStyle(
               fontSize: isTotal ? 18 : 16,
               fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
+            ),
+          ),
           const Spacer(),
-                  Text(
+          Text(
             value,
             style: TextStyle(
               fontSize: isTotal ? 18 : 16,
               fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
               color: isTotal ? AppTheme.primaryColor : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentMethodOption() {
+    switch (_selectedPaymentMethod) {
+      case 'pix':
+        return Row(
+          children: [
+            const Icon(Icons.pix, color: Colors.green),
+            const SizedBox(width: 8),
+            const Text(
+              'Pix',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.green,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Recomendado',
+                style: TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+          ],
+        );
+      case 'credit_card':
+        return Row(
+          children: [
+            const Icon(Icons.credit_card, color: Colors.blue),
+            const SizedBox(width: 8),
+            const Text(
+              'Cartão de Crédito',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+          ],
+        );
+      case 'boleto':
+        return Row(
+          children: [
+            const Icon(Icons.receipt, color: Colors.orange),
+            const SizedBox(width: 8),
+            const Text(
+              'Boleto Bancário',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+          ],
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  void _showPaymentMethodDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Forma de Pagamento'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildPaymentOption('pix', 'Pix', Icons.pix, Colors.green, 'Pagamento instantâneo'),
+            _buildPaymentOption('credit_card', 'Cartão de Crédito', Icons.credit_card, Colors.blue, 'Parcelado em até 12x'),
+            _buildPaymentOption('boleto', 'Boleto Bancário', Icons.receipt, Colors.orange, 'Vencimento em 3 dias'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentOption(String value, String title, IconData icon, Color color, String description) {
+    return RadioListTile<String>(
+      value: value,
+      groupValue: _selectedPaymentMethod,
+      onChanged: (newValue) {
+        setState(() {
+          _selectedPaymentMethod = newValue!;
+        });
+        Navigator.pop(context);
+      },
+      title: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 8),
+          Text(title),
+        ],
+      ),
+      subtitle: Text(description, style: const TextStyle(fontSize: 12)),
+    );
+  }
+
+  Future<void> _processOrder(CartProvider cartProvider) async {
+    setState(() {
+      _isProcessingOrder = true;
+    });
+
+    try {
+      final authService = context.read<AuthService>();
+      final user = authService.currentUser;
+      
+      if (user == null) {
+        // Redirecionar para login
+        Navigator.pushNamed(context, '/login');
+        return;
+      }
+
+      final subtotal = cartProvider.totalPrice;
+      final shipping = cartProvider.shippingCost;
+      final total = subtotal + shipping;
+
+      // Gerar ID único para o pedido
+      final orderId = 'order_${DateTime.now().millisecondsSinceEpoch}';
+      
+      // Obter endereço do provider
+      final addressProvider = Provider.of<AddressProvider>(context, listen: false);
+      if (!addressProvider.hasAddress) {
+        throw Exception('Endereço de entrega não informado');
+      }
+
+      // Preparar dados dos itens
+      final items = cartProvider.items.map((item) => {
+        'id': item.product.id,
+        'title': item.product.name,
+        'quantity': item.quantity,
+        'unit_price': item.unitPrice,
+        'total_price': item.totalPrice,
+        'variation': item.variation?.toJson(),
+      }).toList();
+
+      // Criar preferência de pagamento no MercadoPago
+      final preference = await PaymentService.createPaymentPreference(
+        orderId: orderId,
+        totalAmount: total,
+        customerEmail: user.email ?? '',
+        customerName: user.displayName ?? 'Cliente',
+        customerPhone: user.phoneNumber ?? '11999999999',
+        items: items,
+        shippingAddress: addressProvider.toMap(),
+      );
+
+      if (preference != null && preference.initPoint != null) {
+        // Abrir checkout do MercadoPago
+        final success = await launchUrl(
+          Uri.parse(preference.initPoint!),
+          mode: LaunchMode.externalApplication,
+        );
+
+        if (success) {
+          // Mostrar mensagem de sucesso
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Redirecionando para o MercadoPago...'),
+                backgroundColor: AppTheme.successColor,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        } else {
+          throw Exception('Não foi possível abrir o checkout do MercadoPago');
+        }
+      } else {
+        throw Exception('Erro ao criar preferência de pagamento');
+      }
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao processar pedido: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingOrder = false;
+        });
+      }
+    }
+  }
+
+  // Seção de input de CEP
+  Widget _buildCepInputSection(BuildContext context) {
+    final addressProvider = Provider.of<AddressProvider>(context, listen: false);
+    final cepController = TextEditingController();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Digite seu CEP para calcular o frete:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: cepController,
+                decoration: const InputDecoration(
+                  hintText: '00000-000',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.location_on),
+                ),
+                keyboardType: TextInputType.number,
+                maxLength: 9,
+                onChanged: (value) {
+                  // Formatar CEP automaticamente
+                  if (value.length == 5 && !value.contains('-')) {
+                    cepController.text = '$value-';
+                    cepController.selection = TextSelection.fromPosition(
+                      TextPosition(offset: cepController.text.length),
+                    );
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: addressProvider.isLoading
+                  ? null
+                  : () async {
+                      if (cepController.text.isNotEmpty) {
+                        final success = await addressProvider.searchAddressByCep(cepController.text);
+                        if (success) {
+                          // Calcular frete automaticamente
+                          final cartProvider = Provider.of<CartProvider>(context, listen: false);
+                          await cartProvider.calculateShipping(cepController.text);
+                        }
+                      }
+                    },
+              child: addressProvider.isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Calcular'),
+            ),
+          ],
+        ),
+        if (addressProvider.error != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            addressProvider.error!,
+            style: const TextStyle(color: Colors.red, fontSize: 14),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // Seção de informações de frete
+  Widget _buildShippingSection(BuildContext context) {
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    final addressProvider = Provider.of<AddressProvider>(context, listen: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Informações de Entrega:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.local_shipping, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    cartProvider.shippingCost == 0
+                        ? 'Frete Grátis'
+                        : 'Frete: R\$ ${cartProvider.shippingCost.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: cartProvider.shippingCost == 0 ? Colors.green : null,
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.schedule, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('Entrega em 12 até 28 dias'),
+                ],
+              ),
+              if (cartProvider.shippingCost == 0) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.check_circle, size: 20, color: Colors.green),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Frete gratuito aplicado',
+                      style: TextStyle(color: Colors.green, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.location_on, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      addressProvider.fullAddress ?? '',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Dialog para alterar endereço
+  void _showAddressDialog(BuildContext context) {
+    final addressProvider = Provider.of<AddressProvider>(context, listen: false);
+    final cepController = TextEditingController(text: addressProvider.cep);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Alterar Endereço'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: cepController,
+              decoration: const InputDecoration(
+                labelText: 'CEP',
+                hintText: '00000-000',
+              ),
+              keyboardType: TextInputType.number,
+              maxLength: 9,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (cepController.text.isNotEmpty) {
+                final success = await addressProvider.searchAddressByCep(cepController.text);
+                if (success) {
+                  // Recalcular frete
+                  final cartProvider = Provider.of<CartProvider>(context, listen: false);
+                  await cartProvider.calculateShipping(cepController.text);
+                  Navigator.pop(context);
+                }
+              }
+            },
+            child: const Text('Buscar'),
+          ),
+        ],
+      ),
     );
   }
 } 

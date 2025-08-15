@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import 'dart:convert';
 import '../../theme/app_theme.dart';
+import '../../services/aliexpress_auth_service.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -27,7 +29,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://mercadodasophia-api.onrender.com/api/aliexpress/tokens/status'),
+        Uri.parse('https://service-api-aliexpress.mercadodasophia.com.br/api/aliexpress/tokens/status'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -80,8 +82,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () {
-              // Logout simples
-              Navigator.pushReplacementNamed(context, '/');
+              _showLogoutDialog();
             },
           ),
         ],
@@ -197,9 +198,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   },
                 ),
                 _buildDrawerItem(
+                  icon: Icons.shopping_bag,
+                  title: 'Gestão de Pedidos',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/admin/orders');
+                  },
+                ),
+                _buildDrawerItem(
                   icon: Icons.category,
                   title: 'Categorias',
                   onTap: () {
+                    Navigator.pop(context);
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/admin/categories');
                   },
@@ -660,5 +670,40 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ],
       ),
     );
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('🔐 Sair do Sistema'),
+          content: const Text('Tem certeza que deseja sair? Você será redirecionado para a tela de login AliExpress.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _logout();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Sair'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _logout() {
+    final authService = Provider.of<AliExpressAuthService>(context, listen: false);
+    authService.reset();
+    Navigator.of(context).pushReplacementNamed('/admin_aliexpress_login');
   }
 } 

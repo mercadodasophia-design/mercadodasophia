@@ -107,7 +107,7 @@ class _AdminAliExpressSearchScreenState extends State<AdminAliExpressSearchScree
     
     try {
       final response = await http.get(
-        Uri.parse('https://mercadodasophia-api.onrender.com/api/aliexpress/products?q=${Uri.encodeComponent(query)}'),
+        Uri.parse('https://service-api-aliexpress.mercadodasophia.com.br/api/aliexpress/products?q=${Uri.encodeComponent(query)}'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -214,7 +214,7 @@ class _AdminAliExpressSearchScreenState extends State<AdminAliExpressSearchScree
     try {
       // Buscar o produto específico pelo ID exato usando o endpoint existente
       final response = await http.get(
-        Uri.parse('https://mercadodasophia-api.onrender.com/api/aliexpress/product/$productId'),
+        Uri.parse('https://service-api-aliexpress.mercadodasophia.com.br/api/aliexpress/product/$productId'),
         headers: {'Content-Type': 'application/json'},
       );
 

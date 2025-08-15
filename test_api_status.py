@@ -10,7 +10,7 @@ import json
 def test_api_status():
     """Testa se a API Python está funcionando"""
     
-    base_url = "https://mercadodasophia-api.onrender.com"
+    base_url = "https://service-api-aliexpress.mercadodasophia.com.br"
     
     print("🔍 Testando status da API Python...")
     print(f"🌐 URL: {base_url}")

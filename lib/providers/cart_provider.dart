@@ -12,6 +12,7 @@ class CartProvider with ChangeNotifier {
   List<CartItem> _items = [];
   bool _isLoading = false;
   String? _error;
+  double _shippingCost = 0.0;
 
   // Getters
   List<CartItem> get items => List.unmodifiable(_items);
@@ -38,6 +39,96 @@ class CartProvider with ChangeNotifier {
   // Obter itens indisponíveis
   List<CartItem> get unavailableItems {
     return _items.where((item) => !item.isAvailable).toList();
+  }
+
+  // Custo do frete
+  double get shippingCost => _shippingCost;
+
+  // Calcular frete para CEP específico
+  Future<Map<String, dynamic>> calculateShipping(String cep) async {
+    try {
+      // Verificar se há produtos no carrinho
+      if (_items.isEmpty) {
+        _shippingCost = 0.0;
+        notifyListeners();
+        return {
+          'value': 0.0,
+          'delivery_days': 12,
+          'delivery_date': DateTime.now().add(Duration(days: 12)),
+          'cep': cep,
+          'available': true,
+          'message': 'Carrinho vazio',
+        };
+      }
+
+      // Verificar se algum produto tem frete gratuito (freteInfo nulo)
+      bool hasFreeShipping = _items.any((item) => 
+        item.product.freightInfo == null || 
+        item.product.freightInfo!.isEmpty ||
+        item.product.freightInfo!['value'] == null ||
+        item.product.freightInfo!['value'] == 0.0
+      );
+
+      if (hasFreeShipping) {
+        // Se qualquer produto tem frete gratuito, frete é gratuito
+        _shippingCost = 0.0;
+        notifyListeners();
+        
+        return {
+          'value': 0.0,
+          'delivery_days': 12,
+          'delivery_date': DateTime.now().add(Duration(days: 12)),
+          'cep': cep,
+          'available': true,
+          'message': 'Frete Grátis',
+        };
+      }
+
+      // Se não há frete gratuito, usar o valor do produto com maior frete
+      double maxShippingValue = 0.0;
+      
+      for (final item in _items) {
+        if (item.product.freightInfo != null && 
+            item.product.freightInfo!['value'] != null) {
+          final freightValue = (item.product.freightInfo!['value'] as num).toDouble();
+          if (freightValue > maxShippingValue) {
+            maxShippingValue = freightValue;
+          }
+        }
+      }
+
+      // Atualizar custo do frete
+      _shippingCost = maxShippingValue;
+      notifyListeners();
+
+      return {
+        'value': maxShippingValue,
+        'delivery_days': 12,
+        'delivery_date': DateTime.now().add(Duration(days: 12)),
+        'cep': cep,
+        'available': true,
+        'message': 'Frete calculado',
+      };
+
+    } catch (e) {
+      _shippingCost = 0.0;
+      notifyListeners();
+      
+      return {
+        'value': 0.0,
+        'delivery_days': 12,
+        'delivery_date': DateTime.now().add(Duration(days: 12)),
+        'cep': cep,
+        'available': false,
+        'error': 'Erro ao calcular frete: $e',
+      };
+    }
+  }
+
+  // Calcular frete gratuito (quando produto tem frete nulo)
+  void setFreeShipping() {
+    _shippingCost = 0.0;
+    notifyListeners();
   }
 
   // Inicializar carrinho
@@ -274,6 +365,12 @@ class CartProvider with ChangeNotifier {
 
   void _clearError() {
     _error = null;
+  }
+
+  // Definir custo do frete
+  void setShippingCost(double cost) {
+    _shippingCost = cost;
+    notifyListeners();
   }
 
   // Método para limpar estado (útil para logout)

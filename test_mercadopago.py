@@ -3,7 +3,7 @@ import requests
 import json
 
 def test_mercadopago_create_preference():
-    url = "https://mercadodasophia-api.onrender.com/api/payment/mp/create-preference"
+    url = "https://service-api-aliexpress.mercadodasophia.com.br/api/payment/mp/create-preference"
     
     payload = {
         "items": [
@@ -50,7 +50,7 @@ def test_mercadopago_create_preference():
         print(f"Exception: {e}")
 
 def test_debug_endpoint():
-    url = "https://mercadodasophia-api.onrender.com/api/payment/mp/debug"
+    url = "https://service-api-aliexpress.mercadodasophia.com.br/api/payment/mp/debug"
     
     try:
         print(f"\nTesting debug endpoint: {url}")

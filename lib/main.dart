@@ -22,6 +22,7 @@ import 'services/auth_service.dart';
 import 'services/firebase_product_service.dart';
 import 'providers/location_provider.dart';
 import 'providers/cart_provider.dart';
+import 'providers/address_provider.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -56,6 +57,9 @@ class MercadoDaSophiaApp extends StatelessWidget {
         ChangeNotifierProvider<CartProvider>(
           create: (_) => CartProvider(),
         ),
+        ChangeNotifierProvider<AddressProvider>(
+          create: (_) => AddressProvider(),
+        ),
         Provider<FirebaseProductService>(
           create: (_) => FirebaseProductService(),
         ),
@@ -63,7 +67,7 @@ class MercadoDaSophiaApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Mercado da Sophia',
         theme: AppTheme.lightTheme,
-        initialRoute: '/login', // Voltar para login
+        initialRoute: '/products', // Home da loja
         routes: {
           '/login': (context) => const ClientLoginScreen(),
           '/products': (context) => const ProductsScreen(),

@@ -54,7 +54,7 @@ class AliExpressProduct {
 }
 
 class AliExpressApiService {
-  static const String baseUrl = 'https://mercadodasophia-api.onrender.com';
+  static const String baseUrl = 'https://service-api-aliexpress.mercadodasophia.com.br';
   
   // Buscar produtos do AliExpress
   static Future<List<AliExpressProduct>> searchProducts(String keywords) async {

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../services/auth_service.dart';
 
 class CouponsScreen extends StatefulWidget {
   const CouponsScreen({super.key});
@@ -73,6 +75,22 @@ class _CouponsScreenState extends State<CouponsScreen> {
       return coupons.where((coupon) => !coupon['isActive']).toList();
     }
     return coupons;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAuthentication();
+    });
+  }
+
+  void _checkAuthentication() {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    if (!authService.isAuthenticated) {
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
   }
 
   @override

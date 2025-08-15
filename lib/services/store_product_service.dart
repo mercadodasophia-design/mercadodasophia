@@ -5,7 +5,7 @@ import '../models/product.dart';
 
 class StoreProductService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static const String _apiBaseUrl = 'https://mercadodasophia-api.onrender.com/api';
+  static const String _apiBaseUrl = 'https://service-api-aliexpress.mercadodasophia.com.br/api';
 
   // Buscar produtos combinando locais e importados
   Future<List<Product>> getProducts({

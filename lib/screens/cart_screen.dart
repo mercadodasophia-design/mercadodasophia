@@ -301,14 +301,6 @@ class _CartScreenState extends State<CartScreen> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'SKU: ${item.sku}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
                   const SizedBox(height: 8),
                   
                   // Controles de quantidade

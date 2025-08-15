@@ -3,7 +3,7 @@ import requests
 import json
 
 def test_env_vars():
-    url = "https://mercadodasophia-api.onrender.com/test"
+    url = "https://service-api-aliexpress.mercadodasophia.com.br/test"
     
     try:
         print("🔍 Testando servidor...")
@@ -16,7 +16,7 @@ def test_env_vars():
         print(f"Exception: {e}")
 
 def test_mp_debug():
-    url = "https://mercadodasophia-api.onrender.com/api/payment/mp/debug"
+    url = "https://service-api-aliexpress.mercadodasophia.com.br/api/payment/mp/debug"
     
     try:
         print("\n🔍 Testando debug MP...")

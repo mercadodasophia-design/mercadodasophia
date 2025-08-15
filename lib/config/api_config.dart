@@ -1,6 +1,6 @@
 class ApiConfig {
   // URLs das APIs
-  static const String baseUrl = 'https://mercadodasophia-api.onrender.com'; // Servidor no Render
+  static const String baseUrl = 'https://service-api-aliexpress.mercadodasophia.com.br'; // Servidor no Firebase
   
   // Endpoints
   static const String shippingQuote = '/shipping/quote'; // Python backend com AliExpress real

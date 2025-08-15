@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PaymentService {
-  static const String _baseUrl = 'https://mercadodasophia-api.onrender.com';
+  static const String _baseUrl = 'https://service-api-aliexpress.mercadodasophia.com.br';
   
   // Criar preferência de pagamento via Mercado Pago
   static Future<PaymentPreference?> createPaymentPreference({
@@ -12,6 +13,7 @@ class PaymentService {
     required String customerName,
     required String customerPhone,
     required List<Map<String, dynamic>> items,
+    Map<String, dynamic>? shippingAddress,
   }) async {
     try {
       final url = Uri.parse('$_baseUrl/api/payment/process');
@@ -30,7 +32,8 @@ class PaymentService {
             'area_code': customerPhone.length >= 11 ? customerPhone.substring(0, 2) : '85',
             'number': customerPhone.length >= 11 ? customerPhone.substring(2) : customerPhone,
           }
-        }
+        },
+        'shipping_address': shippingAddress,
       };
       
       print('🔄 Enviando dados de pagamento: ${jsonEncode(payload)}');
@@ -86,6 +89,44 @@ class PaymentService {
     }
   }
   
+  // Salvar pedido no Firebase após pagamento aprovado (chamado pelo webhook)
+  static Future<bool> saveOrderToFirebase({
+    required String paymentId,
+    required List<Map<String, dynamic>> items,
+    required Map<String, dynamic> shippingAddress,
+    required double totalAmount,
+    required String customerEmail,
+    required String customerName,
+  }) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      
+      final orderData = {
+        'payment_id': paymentId,
+        'customer_email': customerEmail,
+        'customer_name': customerName,
+        'items': items,
+        'shipping_address': shippingAddress,
+        'total_amount': totalAmount,
+        'status': 'aguardando_envio', // Status inicial
+        'created_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+        'aliexpress_order_id': null,
+        'admin_notes': '',
+        'approved_by': null,
+        'approved_at': null,
+      };
+      
+      await firestore.collection('orders').add(orderData);
+      
+      print('✅ Pedido salvo no Firebase com status: aguardando_envio');
+      return true;
+    } catch (e) {
+      print('❌ Erro ao salvar pedido no Firebase: $e');
+      return false;
+    }
+  }
+
   // Criar pedido AliExpress após pagamento aprovado
   static Future<AliExpressOrder?> createAliExpressOrder({
     required String paymentId,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/product.dart';
 import '../services/product_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/product_card_v2.dart';
 import '../theme/app_theme.dart';
 
@@ -19,6 +21,17 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAuthentication();
+    });
+  }
+
+  void _checkAuthentication() {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    if (!authService.isAuthenticated) {
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
     _loadFavorites();
   }
 

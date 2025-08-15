@@ -6,7 +6,7 @@ import 'aliexpress_category_mapper.dart';
 
 class AliExpressService {
   // API principal - Funcionando
-  static const String _apiBaseUrl = 'https://mercadodasophia-api.onrender.com/api';
+  static const String _apiBaseUrl = 'https://service-api-aliexpress.mercadodasophia.com.br/api';
   
   // Headers para requisições
   static const Map<String, String> _headers = {

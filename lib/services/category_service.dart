@@ -25,7 +25,7 @@ class Category {
 }
 
 class CategoryService {
-  static const String baseUrl = 'https://mercadodasophia-api.onrender.com';
+  static const String baseUrl = 'https://service-api-aliexpress.mercadodasophia.com.br';
 
   // Categorias padrão caso a API não funcione
   static final List<Category> defaultCategories = [

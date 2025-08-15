@@ -65,9 +65,7 @@ class _ProductVariationsWidgetState extends State<ProductVariationsWidget> {
         ],
         
         // Informações da variação selecionada
-        if (currentVariation != null) ...[
-          _buildVariationInfo(),
-        ],
+        _buildVariationInfo(),
       ],
     );
   }
@@ -281,6 +279,40 @@ class _ProductVariationsWidgetState extends State<ProductVariationsWidget> {
   }
 
   Widget _buildVariationInfo() {
+    // Se não há variação selecionada, mostrar mensagem de instrução
+    if (currentVariation == null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.orange[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.orange[200]!,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: Colors.orange[600],
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _getSelectionInstruction(),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.orange[800],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
     final variation = currentVariation!;
     
     return Container(
@@ -329,14 +361,7 @@ class _ProductVariationsWidgetState extends State<ProductVariationsWidget> {
                         color: Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'SKU: ${variation.sku}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
+
                   ],
                 ),
               ),
@@ -422,10 +447,53 @@ class _ProductVariationsWidgetState extends State<ProductVariationsWidget> {
   }
 
   void _updateCurrentVariation() {
+    // Verificar se temos seleções válidas
+    bool hasValidSelection = false;
+    
+    // Se o produto tem apenas cores (sem tamanhos)
+    if (widget.product.availableColors.isNotEmpty && widget.product.availableSizes.isEmpty) {
+      hasValidSelection = selectedColor != null;
+    }
+    // Se o produto tem apenas tamanhos (sem cores)
+    else if (widget.product.availableSizes.isNotEmpty && widget.product.availableColors.isEmpty) {
+      hasValidSelection = selectedSize != null;
+    }
+    // Se o produto tem cores e tamanhos
+    else if (widget.product.availableColors.isNotEmpty && widget.product.availableSizes.isNotEmpty) {
+      hasValidSelection = selectedColor != null && selectedSize != null;
+    }
+    
+    if (!hasValidSelection) {
+      setState(() {
+        currentVariation = null;
+      });
+      widget.onVariationSelected(null);
+      return;
+    }
+
     // Encontrar a variação que corresponde à seleção atual
-    final variation = widget.product.variations.firstWhere(
-      (v) => v.color == selectedColor && v.size == selectedSize,
-      orElse: () => ProductVariation(
+    ProductVariation? variation;
+    
+    try {
+      variation = widget.product.variations.firstWhere(
+        (v) {
+          bool colorMatch = selectedColor == null || v.color == selectedColor;
+          bool sizeMatch = selectedSize == null || v.size == selectedSize;
+          return colorMatch && sizeMatch;
+        },
+        orElse: () => ProductVariation(
+          id: '',
+          productId: widget.product.id,
+          color: selectedColor,
+          size: selectedSize,
+          price: widget.product.price,
+          stock: 0,
+          sku: '',
+        ),
+      );
+    } catch (e) {
+      // Se não encontrar variação, criar uma vazia
+      variation = ProductVariation(
         id: '',
         productId: widget.product.id,
         color: selectedColor,
@@ -433,19 +501,38 @@ class _ProductVariationsWidgetState extends State<ProductVariationsWidget> {
         price: widget.product.price,
         stock: 0,
         sku: '',
-      ),
-    );
+      );
+    }
 
     setState(() {
       currentVariation = variation;
     });
 
     // Notificar o callback apenas se a variação tem estoque
-    if (variation.hasStock) {
+    if (variation != null && variation.hasStock) {
       widget.onVariationSelected(variation);
     } else {
       // Se não tem estoque, notificar com null para indicar que não pode ser selecionada
       widget.onVariationSelected(null);
+    }
+  }
+
+  String _getSelectionInstruction() {
+    // Se o produto tem apenas cores (sem tamanhos)
+    if (widget.product.availableColors.isNotEmpty && widget.product.availableSizes.isEmpty) {
+      return 'Selecione uma cor para continuar';
+    }
+    // Se o produto tem apenas tamanhos (sem cores)
+    else if (widget.product.availableSizes.isNotEmpty && widget.product.availableColors.isEmpty) {
+      return 'Selecione um tamanho para continuar';
+    }
+    // Se o produto tem cores e tamanhos
+    else if (widget.product.availableColors.isNotEmpty && widget.product.availableSizes.isNotEmpty) {
+      return 'Selecione uma cor e um tamanho para continuar';
+    }
+    // Caso padrão
+    else {
+      return 'Selecione as opções do produto para continuar';
     }
   }
 

@@ -780,31 +780,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
     return Column(
       children: [
-        // Botão Comprar Agora
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: canAddToCart ? () {
-              _addToCart();
-            } : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: canAddToCart ? AppTheme.primaryColor : Colors.grey[400],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: Text(
-              canAddToCart ? 'Comprar Agora' : 'Indisponível',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
         // Botão Adicionar ao Carrinho
         SizedBox(
           width: double.infinity,
@@ -827,6 +802,31 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: canAddToCart ? AppTheme.primaryColor : Colors.grey[600],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Botão Ir para o Carrinho
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: () {
+              Navigator.pushNamed(context, '/cart');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Ir para o Carrinho',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
             ),
           ),
@@ -859,7 +859,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           ),
         ),
         const SizedBox(height: 16),
-        _buildInfoRow('SKU', 'SKU-${widget.product.id}'),
         _buildInfoRow('Categoria', widget.product.category),
         _buildInfoRow('Disponibilidade', 'Em estoque'),
         _buildInfoRow('Entrega', '2-5 dias úteis'),

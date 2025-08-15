@@ -33,7 +33,7 @@ class _AdminAuthorizationsScreenState extends State<AdminAuthorizationsScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://mercadodasophia-api.onrender.com/api/aliexpress/tokens/status'),
+        Uri.parse('https://service-api-aliexpress.mercadodasophia.com.br/api/aliexpress/tokens/status'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -98,7 +98,7 @@ class _AdminAuthorizationsScreenState extends State<AdminAuthorizationsScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://mercadodasophia-api.onrender.com/api/aliexpress/auth'),
+        Uri.parse('https://service-api-aliexpress.mercadodasophia.com.br/api/aliexpress/auth'),
         headers: {'Content-Type': 'application/json'},
       );
 

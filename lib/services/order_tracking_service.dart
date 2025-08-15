@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class OrderTrackingService {
-  static const String _baseUrl = 'https://mercadodasophia-api.onrender.com';
+  static const String _baseUrl = 'https://service-api-aliexpress.mercadodasophia.com.br';
   
   // Buscar pedidos do usuário
   static Future<List<Order>> getUserOrders(String userId) async {

@@ -300,76 +300,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Column(
               children: [
-                // Localização do usuário
-                Consumer<LocationProvider>(
-                  builder: (context, locationProvider, child) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: Row(
-                        children: [
-                          if (locationProvider.isLoading)
-                            const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
-                              ),
-                            )
-                          else
-                            Icon(
-                              Icons.location_on,
-                              color: AppTheme.primaryColor,
-                              size: 16,
-                            ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  locationProvider.hasLocation || locationProvider.hasSavedAddress
-                                    ? locationProvider.getFormattedAddress()
-                                    : locationProvider.error ?? 'Obtendo localização...',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (locationProvider.hasSavedAddress)
-                                  const Text(
-                                    'Endereço salvo',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.green,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (locationProvider.hasLocation || locationProvider.hasSavedAddress)
-                            IconButton(
-                              icon: const Icon(Icons.refresh, size: 16),
-                              onPressed: () {
-                                locationProvider.getCurrentLocation();
-                              },
-                              tooltip: 'Atualizar localização',
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
                 
                 // Filtros de categoria
                 SingleChildScrollView(
@@ -444,76 +374,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
        child: Column(
          children: [
-           // Localização do usuário
-           Consumer<LocationProvider>(
-             builder: (context, locationProvider, child) {
-               return Container(
-                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                 decoration: BoxDecoration(
-                   color: Colors.grey[50],
-                   borderRadius: BorderRadius.circular(6),
-                   border: Border.all(color: Colors.grey[300]!),
-                 ),
-                 child: Row(
-                   children: [
-                     if (locationProvider.isLoading)
-                       const SizedBox(
-                         width: 16,
-                         height: 16,
-                         child: CircularProgressIndicator(
-                           strokeWidth: 2,
-                           valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
-                         ),
-                       )
-                     else
-                       Icon(
-                         Icons.location_on,
-                         color: AppTheme.primaryColor,
-                         size: 16,
-                       ),
-                     const SizedBox(width: 6),
-                     Expanded(
-                       child: Column(
-                         crossAxisAlignment: CrossAxisAlignment.start,
-                         children: [
-                           Text(
-                             locationProvider.hasLocation || locationProvider.hasSavedAddress
-                               ? locationProvider.getFormattedAddress()
-                               : locationProvider.error ?? 'Obtendo localização...',
-                             style: const TextStyle(
-                               fontSize: 13,
-                               fontWeight: FontWeight.w500,
-                             ),
-                             overflow: TextOverflow.ellipsis,
-                           ),
-                           if (locationProvider.hasSavedAddress)
-                             const Text(
-                               'Endereço salvo',
-                               style: TextStyle(
-                                 fontSize: 10,
-                                 color: Colors.green,
-                                 fontWeight: FontWeight.bold,
-                               ),
-                             ),
-                         ],
-                       ),
-                     ),
-                     if (locationProvider.hasLocation || locationProvider.hasSavedAddress)
-                       IconButton(
-                         icon: const Icon(Icons.refresh, size: 16),
-                         onPressed: () {
-                           locationProvider.getCurrentLocation();
-                         },
-                         tooltip: 'Atualizar localização',
-                         padding: EdgeInsets.zero,
-                         constraints: const BoxConstraints(),
-                       ),
-                   ],
-                 ),
-               );
-             },
-           ),
-           const SizedBox(height: 16),
            
            // Filtros de categoria
            SingleChildScrollView(
@@ -956,36 +816,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         padding: const EdgeInsets.all(20),
                         child: Column(
                           children: [
-                            // Seção de Localização
-                            Consumer<LocationProvider>(
-                              builder: (context, locationProvider, child) {
-                                return _buildDrawerSection(
-                                  'Localização',
-                                  [
-                                    _buildDrawerItem(
-                                      locationProvider.hasLocation 
-                                        ? locationProvider.getFormattedAddress()
-                                        : 'Obtendo localização...',
-                                      Icons.location_on,
-                                      () {
-                                        if (locationProvider.hasLocation) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text('Localização: ${locationProvider.getFormattedAddress()}'),
-                                              backgroundColor: AppTheme.primaryColor,
-                                            ),
-                                          );
-                                        } else {
-                                          locationProvider.getCurrentLocation();
-                                        }
-                                      },
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                            
-                            const Divider(height: 30),
+
                             
                             // Seção de Login
                             Consumer<AuthService>(
@@ -1270,16 +1101,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   ? locationProvider.getFormattedAddress()
                                   : 'Obtendo localização...',
                                 Icons.location_on,
-                                () {
+                                () async {
                                   if (locationProvider.hasLocation) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Localização: ${locationProvider.getFormattedAddress()}'),
-                                        backgroundColor: AppTheme.primaryColor,
-                                      ),
-                                    );
+                                    // Se o endereço atual é apenas coordenadas, tentar obter endereço real
+                                    if (locationProvider.getFormattedAddress().contains('Localização:')) {
+                                      await locationProvider.refreshAddress();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Endereço atualizado: ${locationProvider.getFormattedAddress()}'),
+                                          backgroundColor: AppTheme.primaryColor,
+                                        ),
+                                      );
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Localização: ${locationProvider.getFormattedAddress()}'),
+                                          backgroundColor: AppTheme.primaryColor,
+                                        ),
+                                      );
+                                    }
                                   } else {
-                                    locationProvider.getCurrentLocation();
+                                    await locationProvider.getCurrentLocation();
                                   }
                                 },
                               ),
