@@ -697,4 +697,37 @@ class AliExpressService {
       throw Exception('Get feed products failed: $e');
     }
   }
+
+  // Obter feeds completos com produtos usando o novo endpoint
+  Future<Map<String, dynamic>> getCompleteFeeds({
+    int page = 1,
+    int pageSize = 20,
+    int maxFeeds = 5,
+  }) async {
+    try {
+      print('🚀 Getting complete feeds (page: $page, pageSize: $pageSize, maxFeeds: $maxFeeds)');
+      
+      final response = await http.get(
+        Uri.parse('$_apiBaseUrl/aliexpress/feeds/complete?page=$page&page_size=$pageSize&max_feeds=$maxFeeds'),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          print('✅ Complete feeds loaded successfully');
+          return data;
+        } else {
+          print('❌ API Error: ${data['message']}');
+          throw Exception('API returned error: ${data['message']}');
+        }
+      } else {
+        print('❌ API Error: ${response.statusCode}');
+        throw Exception('HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Get complete feeds error: $e');
+      throw Exception('Get complete feeds failed: $e');
+    }
+  }
 } 
