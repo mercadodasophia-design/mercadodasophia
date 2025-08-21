@@ -29,19 +29,20 @@ class _AdminFeedTestScreenState extends State<AdminFeedTestScreen> {
   @override
   void initState() {
     super.initState();
-    _loadFeeds();
-    // Carregar feeds completos automaticamente
+    // Carregar apenas feeds completos automaticamente
     _loadCompleteFeeds();
   }
   
   Future<void> _loadFeeds() async {
     try {
+      if (!mounted) return;
       setState(() {
         isLoadingFeeds = true;
       });
       
       final availableFeeds = await _aliExpressService.getAvailableFeeds();
       
+      if (!mounted) return;
       setState(() {
         feeds = availableFeeds;
         isLoadingFeeds = false;
@@ -52,6 +53,7 @@ class _AdminFeedTestScreenState extends State<AdminFeedTestScreen> {
         _onFeedSelected(feeds.first.feedName);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         isLoadingFeeds = false;
       });
@@ -70,6 +72,7 @@ class _AdminFeedTestScreenState extends State<AdminFeedTestScreen> {
   // Novo método para carregar feeds completos
   Future<void> _loadCompleteFeeds() async {
     try {
+      if (!mounted) return;
       setState(() {
         isLoadingCompleteFeeds = true;
       });
@@ -80,6 +83,7 @@ class _AdminFeedTestScreenState extends State<AdminFeedTestScreen> {
         maxFeeds: 3,
       );
       
+      if (!mounted) return;
       setState(() {
         completeFeedsData = completeData;
         isLoadingCompleteFeeds = false;
@@ -94,6 +98,7 @@ class _AdminFeedTestScreenState extends State<AdminFeedTestScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         isLoadingCompleteFeeds = false;
       });
@@ -113,6 +118,7 @@ class _AdminFeedTestScreenState extends State<AdminFeedTestScreen> {
     if (selectedFeed == null) return;
     
     try {
+      if (!mounted) return;
       setState(() {
         isLoadingFeedProducts = true;
       });
@@ -127,6 +133,7 @@ class _AdminFeedTestScreenState extends State<AdminFeedTestScreen> {
         page: currentFeedPage,
       );
       
+      if (!mounted) return;
       setState(() {
         if (refresh) {
           feedProducts = feedProductsData.products;
@@ -139,6 +146,7 @@ class _AdminFeedTestScreenState extends State<AdminFeedTestScreen> {
         isLoadingFeedProducts = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         isLoadingFeedProducts = false;
       });
@@ -299,20 +307,22 @@ class _AdminFeedTestScreenState extends State<AdminFeedTestScreen> {
   }
 
   Widget _buildProductCard(Map<String, dynamic> product) {
-    final productId = product['product_id'] as String;
-    final title = product['title'] as String;
-    final price = product['price'] as String;
-    final mainImage = product['main_image'] as String;
-    final rating = product['rating'] as double;
+    final productId = product['product_id']?.toString() ?? '';
+    final title = product['title']?.toString() ?? '';
+    final price = product['price']?.toString() ?? '';
+    final mainImage = product['main_image']?.toString() ?? '';
+    final rating = (product['rating'] as num?)?.toDouble() ?? 0.0;
     
     return Container(
       width: 150,
+      height: 200, // Altura fixa para evitar overflow
       margin: const EdgeInsets.only(right: 12),
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min, // Importante para evitar overflow
             children: [
               // Imagem do produto
               Container(
@@ -342,29 +352,33 @@ class _AdminFeedTestScreenState extends State<AdminFeedTestScreen> {
               const SizedBox(height: 8),
               
               // Título do produto
-              Text(
-                title.isNotEmpty ? title : 'Produto $productId',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  title.isNotEmpty ? title : 'Produto $productId',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 4),
               
               // Preço e rating
               Row(
                 children: [
-                  Text(
-                    price.isNotEmpty ? price : 'R\$ 0,00',
-                    style: const TextStyle(
-                      color: AppTheme.primaryColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                  Expanded(
+                    child: Text(
+                      price.isNotEmpty ? price : 'R\$ 0,00',
+                      style: const TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
                   if (rating > 0) ...[
                     const Icon(Icons.star, size: 12, color: Colors.amber),
                     Text(

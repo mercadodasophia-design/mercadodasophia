@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "mercadodasophia-bbd01"
-  }
+  },
+  "targets": {
+    "mercadodasophia-bbd01": {
+      "hosting": {
+        "admin": [
+          "admin-mercadodasophia"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

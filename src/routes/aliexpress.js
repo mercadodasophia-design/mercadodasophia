@@ -54,24 +54,23 @@ router.get('/search', [
   }
 });
 
-// Obter detalhes de um produto específico
-router.get('/product/:productId', [
-  query('url').notEmpty().withMessage('URL do produto é obrigatória')
+// Obter detalhes de um produto específico (por ID ou URL)
+router.get('/product/:productId?', [
+  // Aceita productId como param OU url como query
 ], authenticateToken, async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        error: 'Parâmetros inválidos',
-        details: errors.array() 
-      });
-    }
-
+    const { productId } = req.params;
     const { url } = req.query;
 
-    console.log(`📦 Obtendo detalhes do produto: ${url}`);
+    if (!productId && !url) {
+      return res.status(400).json({ error: 'Informe productId na rota ou url na query' });
+    }
 
-    const productDetails = await aliExpressService.getProductDetails(url);
+    const targetUrl = url || `${aliExpressService.baseUrl}/item/${productId}.html`;
+
+    console.log(`📦 Obtendo detalhes do produto: ${targetUrl}`);
+
+    const productDetails = await aliExpressService.getProductDetails(targetUrl);
 
     res.json({
       success: true,

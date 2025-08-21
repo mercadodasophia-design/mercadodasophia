@@ -9,6 +9,8 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const { sequelize, testConnection } = require('./config/database');
+const Product = require('./models/Product');
+const Category = require('./models/Category');
 
 // Middleware de segurança
 app.use(helmet());
@@ -29,6 +31,11 @@ app.use(morgan('combined'));
 // Parse JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Associações Sequelize
+// Produto pertence a Categoria; Categoria possui muitos Produtos
+Product.belongsTo(Category, { as: 'category', foreignKey: 'category_id' });
+Category.hasMany(Product, { as: 'products', foreignKey: 'category_id' });
 
 // Rotas
 app.use('/api/auth', require('./routes/auth'));

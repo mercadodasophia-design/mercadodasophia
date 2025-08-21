@@ -75,6 +75,44 @@ Implementar feed direto do AliExpress na loja principal para exibir produtos sem
 }
 ```
 
+#### **Exemplo Real (Produção)**
+Resposta obtida de `/api/aliexpress/feeds/list`:
+```json
+{
+  "success": true,
+  "feeds": [
+    {
+      "feed_name": "DS_Brazil_topsellers",
+      "feed_id": "1",
+      "display_name": "Mais Vendidos Brasil",
+      "description": "Produtos mais vendidos no Brasil",
+      "product_count": 14544
+    },
+    {
+      "feed_name": "DS_NewArrivals",
+      "feed_id": "2",
+      "display_name": "Novidades",
+      "description": "Produtos recém-chegados",
+      "product_count": 14818
+    },
+    {
+      "feed_name": "DS_ConsumerElectronics_bestsellers",
+      "feed_id": "3",
+      "display_name": "Eletrônicos",
+      "description": "Eletrônicos mais vendidos",
+      "product_count": 20633
+    },
+    {
+      "feed_name": "DS_Home&Kitchen_bestsellers",
+      "feed_id": "4",
+      "display_name": "Casa e Cozinha",
+      "description": "Produtos para casa e cozinha",
+      "product_count": 12751
+    }
+  ]
+}
+```
+
 #### **Resposta Esperada**
 ```json
 {

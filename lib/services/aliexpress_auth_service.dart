@@ -101,16 +101,24 @@ class AliExpressAuthService extends ChangeNotifier {
     }
   }
 
-  /// Tenta fazer refresh do token
+  /// Tenta fazer refresh do token (GET preferencial)
   Future<bool> refreshToken() async {
     _setLoading(true);
     _clearError();
 
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/aliexpress/token/refresh'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
+      // Tenta via GET (servidor já expõe GET /token/refresh)
+      http.Response response;
+      try {
+        response = await http
+            .get(Uri.parse('$_baseUrl/api/aliexpress/token/refresh'))
+            .timeout(const Duration(seconds: 10));
+      } catch (_) {
+        // Fallback para POST caso GET falhe
+        response = await http
+            .post(Uri.parse('$_baseUrl/api/aliexpress/token/refresh'), headers: {'Content-Type': 'application/json'}, body: '{}')
+            .timeout(const Duration(seconds: 10));
+      }
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -130,6 +138,23 @@ class AliExpressAuthService extends ChangeNotifier {
       _setError('Erro ao fazer refresh do token: $e');
       _setLoading(false);
       return false;
+    }
+  }
+
+  /// Executa uma função com retry automático quando token expira
+  Future<T> withAuthRetry<T>(Future<T> Function() action) async {
+    try {
+      return await action();
+    } catch (e) {
+      // Tenta refresh se erro parecer de autorização/expiração
+      final message = e.toString().toLowerCase();
+      if (message.contains('401') || message.contains('unauthorized') || message.contains('token')) {
+        final refreshed = await refreshToken();
+        if (refreshed) {
+          return await action();
+        }
+      }
+      rethrow;
     }
   }
 

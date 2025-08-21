@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:html/parser.dart' as html;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'aliexpress_category_mapper.dart';
 import '../models/feed.dart';
 
 class AliExpressService {
   // API principal - Funcionando
-  static const String _apiBaseUrl = 'https://service-api-aliexpress.mercadodasophia.com.br/api';
+  static const String _apiBaseUrl = 'https://service-api-aliexpress.mercadodasophia.com.br/api/aliexpress';
   
   // Headers para requisições
   static const Map<String, String> _headers = {
@@ -25,14 +24,14 @@ class AliExpressService {
       print('🔍 Searching products: $query (page: $page, sort: $sortBy)');
       
       final response = await http.get(
-        Uri.parse('$_apiBaseUrl/search?keywords=${Uri.encodeComponent(query)}&category_id=2&page=$page&page_size=$limit'),
+        Uri.parse('$_apiBaseUrl/products?keywords=${Uri.encodeComponent(query)}&page=$page&page_size=$limit'),
         headers: _headers,
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
-          final products = List<Map<String, dynamic>>.from(data['products']);
+          final products = List<Map<String, dynamic>>.from(data['products'] ?? data['data'] ?? []);
           print('✅ Found ${products.length} products');
           return products;
         } else {
@@ -69,7 +68,7 @@ class AliExpressService {
         final data = json.decode(response.body);
         if (data['success'] == true) {
           print('✅ Product details loaded');
-          return data['product'];
+          return data['product'] ?? data['data'] ?? {};
         } else {
           print('❌ API Error: ${data['message']}');
           throw Exception('API returned error: ${data['message']}');
@@ -94,13 +93,12 @@ class AliExpressService {
       print('📦 Importing product: $productUrl');
       
       final response = await http.post(
-        Uri.parse('$_apiBaseUrl/import'),
+        Uri.parse('$_apiBaseUrl/import-product'),
         headers: _headers,
         body: json.encode({
-          'url': productUrl,
-          'categoryId': categoryId,
-          'priceOverride': priceOverride,
-          'stockQuantity': stockQuantity,
+          'product_id': productIdFromUrl(productUrl),
+          'weight': null,
+          'dimensions': null,
         }),
       ).timeout(const Duration(seconds: 30));
 
@@ -139,20 +137,16 @@ class AliExpressService {
       
       print('🔍 Categoria detectada: ${categoryDetection['detected_category']} (${(categoryDetection['confidence'] * 100).toStringAsFixed(1)}% confiança)');
       
-      // 3. Preparar dados para importação com categoria
-      final importData = {
-        'url': productUrl,
-        'categoryId': categoryId, // Usar categoria manual se fornecida
-        'priceOverride': priceOverride,
-        'stockQuantity': stockQuantity,
-        'detected_category': categoryDetection, // Salvar dados da detecção
-      };
+      // 3. Preparar dados locais (opcional) — mantido para logs/uso futuro
+      // final importData = { ... } // removido por não ser usado
       
-      // 4. Fazer importação via API
+      // 4. Fazer importação via API oficial com frete
       final response = await http.post(
-        Uri.parse('$_apiBaseUrl/import'),
+        Uri.parse('$_apiBaseUrl/import-product'),
         headers: _headers,
-        body: json.encode(importData),
+        body: json.encode({
+          'product_id': productIdFromUrl(productUrl),
+        }),
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
@@ -174,6 +168,12 @@ class AliExpressService {
       print('❌ Import error: $e');
       throw Exception('Import failed: $e');
     }
+  }
+
+  // Utilitário: extrair product_id de uma URL AliExpress
+  String productIdFromUrl(String url) {
+    final match = RegExp(r'aliexpress\.com\/item\/(\d+)\.html').firstMatch(url);
+    return match?.group(1) ?? url;
   }
 
   // Salvar produto no Firebase com categoria completa
@@ -450,10 +450,7 @@ class AliExpressService {
   }
 
   // Extrair ID do produto da URL
-  String _extractProductId(String url) {
-    final match = RegExp(r'item/(\d+)\.html').firstMatch(url);
-    return match?.group(1) ?? 'unknown';
-  }
+  // removed unused _extractProductId
 
   // Obter sugestões de categoria para um produto
   Future<List<Map<String, dynamic>>> getCategorySuggestions(String productUrl) async {
@@ -642,9 +639,9 @@ class AliExpressService {
       print('📡 Getting available feeds...');
       
       final response = await http.get(
-        Uri.parse('$_apiBaseUrl/aliexpress/feeds/list'),
+        Uri.parse('$_apiBaseUrl/feeds/list'),
         headers: _headers,
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -674,9 +671,9 @@ class AliExpressService {
       print('📦 Getting products from feed: $feedName (page: $page)');
       
       final response = await http.get(
-        Uri.parse('$_apiBaseUrl/aliexpress/feeds/$feedName/products?page=$page'),
+        Uri.parse('$_apiBaseUrl/feeds/$feedName/products?page=$page'),
         headers: _headers,
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -708,9 +705,9 @@ class AliExpressService {
       print('🚀 Getting complete feeds (page: $page, pageSize: $pageSize, maxFeeds: $maxFeeds)');
       
       final response = await http.get(
-        Uri.parse('$_apiBaseUrl/aliexpress/feeds/complete?page=$page&page_size=$pageSize&max_feeds=$maxFeeds'),
+        Uri.parse('$_apiBaseUrl/feeds/complete?page=$page&page_size=$pageSize&max_feeds=$maxFeeds'),
         headers: _headers,
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 120));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -721,6 +718,34 @@ class AliExpressService {
           print('❌ API Error: ${data['message']}');
           throw Exception('API returned error: ${data['message']}');
         }
+      } else if (response.statusCode == 405 || response.statusCode == 404) {
+        // Fallback: montar feeds pela combinação list + items
+        print('⚠️ Complete endpoint not available (${response.statusCode}). Falling back to list + items.');
+        final feeds = await getAvailableFeeds();
+        final selectedFeeds = feeds.take(maxFeeds).toList();
+        final Map<String, dynamic> result = {
+          'success': true,
+          'feeds': <Map<String, dynamic>>[],
+          'source': 'fallback_list_items'
+        };
+        for (final feed in selectedFeeds) {
+          try {
+            final feedName = feed.feedName;
+            final products = await getFeedProducts(feedName, page: page);
+            (result['feeds'] as List<Map<String, dynamic>>).add({
+              'feed_name': feedName,
+              'display_name': feed.displayName,
+              'description': feed.description,
+              'product_count': feed.productCount,
+              'products': products.products.map((p) => p.toJson()).toList(),
+            });
+          } catch (e) {
+            print('⚠️ Fallback failed for feed ${feed.feedName}: $e');
+          }
+        }
+        final builtFeedsLen = (result['feeds'] as List).length;
+        print('✅ Fallback built $builtFeedsLen feeds');
+        return result;
       } else {
         print('❌ API Error: ${response.statusCode}');
         throw Exception('HTTP ${response.statusCode}');

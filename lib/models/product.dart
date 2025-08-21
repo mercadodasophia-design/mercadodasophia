@@ -142,16 +142,16 @@ class Product {
     }
 
     return Product(
-      id: data['itemId']?.toString() ?? data['id']?.toString() ?? '',
+      id: data['itemId']?.toString() ?? data['id']?.toString() ?? data['product_id']?.toString() ?? '',
       name: data['title'] ?? data['itemTitle'] ?? data['productTitle'] ?? 'Produto sem nome',
       description: data['description'] ?? '',
-      price: _parsePrice(data['targetSalePrice'] ?? data['price'] ?? 0.0),
-      imageUrl: data['itemMainPic'] ?? data['mainImage'] ?? data['imageUrl'] ?? '',
+      price: _parsePrice(data['targetSalePrice'] ?? data['price'] ?? data['sale_price'] ?? 0.0),
+      imageUrl: data['itemMainPic'] ?? data['mainImage'] ?? data['imageUrl'] ?? data['main_image'] ?? '',
       images: images,
       category: data['category'] ?? 'Importado',
       isAvailable: true,
-      rating: _parseRating(data['score'] ?? data['evaluateRate'] ?? 0.0),
-      reviewCount: _parseReviewCount(data['orders'] ?? data['sales'] ?? 0),
+      rating: _parseRating(data['score'] ?? data['evaluateRate'] ?? data['rating'] ?? 0.0),
+      reviewCount: _parseReviewCount(data['orders'] ?? data['sales'] ?? data['review_count'] ?? 0),
       isLocal: isLocal,
       variations: variations,
       weight: _parseDouble(data['weight']),

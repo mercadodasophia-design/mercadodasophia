@@ -60,7 +60,7 @@ class AliExpressApiService {
   static Future<List<AliExpressProduct>> searchProducts(String keywords) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/search?keywords=$keywords'),
+        Uri.parse('$baseUrl/api/aliexpress/products?keywords=$keywords'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -87,7 +87,7 @@ class AliExpressApiService {
   static Future<String> getOAuthUrl() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/aliexpress/oauth-url'),
+        Uri.parse('$baseUrl/api/aliexpress/auth'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -108,7 +108,7 @@ class AliExpressApiService {
   static Future<bool> checkApiHealth() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/health'),
+        Uri.parse('$baseUrl/test'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -116,7 +116,7 @@ class AliExpressApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return data['success'] == true;
+        return data['success'] == true || data['status'] == 'ok' || data['status'] == 'OK';
       }
       
       return false;
