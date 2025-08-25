@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import '../theme/app_theme.dart';
 import '../services/order_tracking_service.dart';
 import '../services/auth_service.dart';
@@ -16,6 +17,7 @@ class MyOrdersScreen extends StatefulWidget {
 class _MyOrdersScreenState extends State<MyOrdersScreen> {
   String selectedFilter = 'Todos';
   List<Order> orders = [];
+  List<String> categories = [];
   bool isLoading = true;
 
   @override
@@ -33,6 +35,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       return;
     }
     _loadOrders();
+    _loadCategories();
     _checkAndClearCartIfNeeded();
   }
 
@@ -96,6 +99,70 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      print('🏷️ Carregando categorias do Firebase...');
+      
+      // Buscar categorias do Firebase
+      final db = FirebaseFirestore.instance;
+      final categoriesSnapshot = await db
+          .collection('categories')
+          .orderBy('name')
+          .get();
+      
+      final List<String> categoryNames = [];
+      
+      for (final doc in categoriesSnapshot.docs) {
+        final data = doc.data();
+        final categoryName = data['name'] as String?;
+        if (categoryName != null && categoryName.isNotEmpty) {
+          categoryNames.add(categoryName);
+        }
+      }
+      
+      // Se não houver categorias no Firebase, buscar das seções de produtos
+      if (categoryNames.isEmpty) {
+        print('📦 Buscando categorias das seções de produtos...');
+        
+        // Buscar produtos e extrair categorias únicas
+        final productsSnapshot = await db
+            .collection('products')
+            .get();
+        
+        final Set<String> uniqueCategories = {};
+        
+        for (final doc in productsSnapshot.docs) {
+          final data = doc.data();
+          final category = data['category'] as String?;
+          if (category != null && category.isNotEmpty) {
+            uniqueCategories.add(category);
+          }
+        }
+        
+        categoryNames.addAll(uniqueCategories.toList()..sort());
+      }
+      
+      setState(() {
+        categories = categoryNames;
+      });
+      
+      print('✅ Categorias carregadas: ${categories.length}');
+      
+    } catch (e) {
+      print('❌ Erro ao carregar categorias: $e');
+      // Em caso de erro, usar categorias padrão
+      setState(() {
+        categories = [
+          'Garrafeira',
+          'Compotas e Mel',
+          'Doces',
+          'Chás e Refrescos',
+          'Queijos e Pão',
+        ];
+      });
     }
   }
 
@@ -272,13 +339,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                           alignment: WrapAlignment.spaceEvenly,
                           spacing: 16,
                           runSpacing: 16,
-                          children: [
-                            _buildFooterCategory('Garrafeira'),
-                            _buildFooterCategory('Compotas e Mel'),
-                            _buildFooterCategory('Doces'),
-                            _buildFooterCategory('Chás e Refrescos'),
-                            _buildFooterCategory('Queijos e Pão'),
-                          ],
+                          children: categories.map((category) => _buildFooterCategory(category)).toList(),
                         ),
                       ],
                     ),
