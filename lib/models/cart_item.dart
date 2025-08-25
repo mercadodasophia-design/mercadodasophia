@@ -1,5 +1,5 @@
-import 'product.dart';
-import 'product_variation.dart';
+import 'product_model.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CartItem {
@@ -25,9 +25,9 @@ class CartItem {
   // Obter nome do item com variação
   String get displayName {
     if (variation != null) {
-      return '${product.name} (${variation!.displayName})';
+      return '${product.titulo} (${variation!.displayName})';
     }
-    return product.name;
+    return product.titulo;
   }
 
   // Obter SKU do item
@@ -51,14 +51,14 @@ class CartItem {
     if (variation != null && variation!.imageUrl != null) {
       return variation!.imageUrl!;
     }
-    return product.imageUrl;
+    return product.images.isNotEmpty ? product.images.first : "";
   }
 
   // Factory para criar CartItem de JSON
   factory CartItem.fromJson(Map<String, dynamic> json) {
     return CartItem(
       id: json['id'] as String,
-      product: Product.fromJson(json['product'] as Map<String, dynamic>),
+      product: Product.fromMap(json['product'] as Map<String, dynamic>, json['product']['id'] ?? ''),
       variation: json['variation'] != null 
           ? ProductVariation.fromJson(json['variation'] as Map<String, dynamic>)
           : null,
@@ -72,8 +72,8 @@ class CartItem {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'product': product.toJson(),
-      'variation': variation?.toJson(),
+      'product': product.toMap(),
+      'variation': variation?.toMap(),
       'quantity': quantity,
       'unitPrice': unitPrice,
       'addedAt': addedAt.toIso8601String(),
@@ -84,7 +84,7 @@ class CartItem {
   factory CartItem.fromFirestore(Map<String, dynamic> data, String id) {
     return CartItem(
       id: id,
-      product: Product.fromJson(data['product'] as Map<String, dynamic>),
+      product: Product.fromMap(data['product'] as Map<String, dynamic>, data['product']['id'] ?? ''),
       variation: data['variation'] != null 
           ? ProductVariation.fromJson(data['variation'] as Map<String, dynamic>)
           : null,
@@ -97,8 +97,8 @@ class CartItem {
   // Converter para Firestore
   Map<String, dynamic> toFirestore() {
     return {
-      'product': product.toJson(),
-      'variation': variation?.toJson(),
+      'product': product.toMap(),
+      'variation': variation?.toMap(),
       'quantity': quantity,
       'unitPrice': unitPrice,
       'addedAt': Timestamp.fromDate(addedAt),
@@ -135,6 +135,6 @@ class CartItem {
 
   @override
   String toString() {
-    return 'CartItem(id: $id, product: ${product.name}, variation: ${variation?.displayName}, quantity: $quantity, unitPrice: $unitPrice)';
+    return 'CartItem(id: $id, product: ${product.titulo}, variation: ${variation?.displayName}, quantity: $quantity, unitPrice: $unitPrice)';
   }
 }

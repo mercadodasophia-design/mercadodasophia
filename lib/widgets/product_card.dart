@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/product.dart';
-import '../theme/app_theme.dart';
+import '../models/product_model.dart';
 
 /// ProductCard com layout otimizado para evitar overflow
 /// 
@@ -29,78 +28,158 @@ class ProductCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
+        child: Container(
           height: 200,
+          padding: const EdgeInsets.all(8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Imagem do produto - altura fixa
+              // Imagem do produto
               Expanded(
                 flex: 3,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                  child: Container(
-                    width: double.infinity,
-                    decoration: const BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.shopping_bag,
-                        size: 40,
-                        color: Colors.white,
-                      ),
-                    ),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: product.images.isNotEmpty
+                        ? Image.network(
+                            product.images.first,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Color(0xFFFF6B9D), Color(0xFFFF8E53)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.shopping_bag,
+                                    size: 40,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              );
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Color(0xFFFF6B9D), Color(0xFFFF8E53)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        : Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Color(0xFFFF6B9D), Color(0xFFFF8E53)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.shopping_bag,
+                                size: 40,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                   ),
                 ),
               ),
-              // Conteúdo do card - altura flexível
+              
+              // Informações do produto
               Expanded(
                 flex: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Nome do produto - espaço garantido
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          product.name,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Título do produto
+                    Flexible(
+                      child: Text(
+                        product.titulo,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w500,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
-                      // Rating - espaço fixo
-                      Row(
+                    ),
+                    
+                    const SizedBox(height: 4),
+                    
+                    // Preço
+                    if (product.descontoPercentual != null && product.descontoPercentual! > 0)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.star,
-                            size: 12,
-                            color: Colors.amber,
-                          ),
-                          const SizedBox(width: 2),
+                          // Preço original riscado
                           Text(
-                            '${product.rating} (${product.reviewCount})',
-                            style: theme.textTheme.labelSmall,
+                            'R\$ ${(product.preco ?? 0.0).toStringAsFixed(2)}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              decoration: TextDecoration.lineThrough,
+                              decorationColor: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          // Preço com desconto
+                          Row(
+                            children: [
+                              Text(
+                                'R\$ ${((product.preco ?? 0.0) * (1 - (product.descontoPercentual! / 100))).toStringAsFixed(2)}',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: const Color(0xFFFF6B9D),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF6B9D),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '-${product.descontoPercentual!.toStringAsFixed(0)}%',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 4),
-                      // Preço - espaço fixo
+                      )
+                    else
+                      // Preço normal sem desconto
                       Text(
-                        'R\$ ${product.price.toStringAsFixed(2)}',
+                        'R\$ ${(product.preco ?? 0.0).toStringAsFixed(2)}',
                         style: theme.textTheme.titleMedium?.copyWith(
-                          color: AppTheme.primaryColor,
+                          color: const Color(0xFFFF6B9D),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
             ],

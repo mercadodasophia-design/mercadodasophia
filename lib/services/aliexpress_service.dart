@@ -48,6 +48,23 @@ class AliExpressService {
     }
   }
 
+  // Obter detalhes enriquecidos de um feed específico (servidor faz as chamadas por ID)
+  Future<Map<String, dynamic>> getFeedDetails(String feedName, {int page = 1, int pageSize = 30}) async {
+    try {
+      final uri = Uri.parse('$_apiBaseUrl/feeds/$feedName/details?page=$page&page_size=$pageSize&limit=$pageSize');
+      final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 120));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data is Map<String, dynamic> ? data : <String, dynamic>{'data': data};
+      } else {
+        throw Exception('HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Get feed details error: $e');
+      rethrow;
+    }
+  }
+
   // Obter detalhes do produto via API Express (REAL)
   Future<Map<String, dynamic>> getProductDetails(String productUrl) async {
     try {
@@ -698,14 +715,15 @@ class AliExpressService {
   // Obter feeds completos com produtos usando o novo endpoint
   Future<Map<String, dynamic>> getCompleteFeeds({
     int page = 1,
-    int pageSize = 20,
+    int pageSize = 8, // AliExpress só permite 8 produtos por página
     int maxFeeds = 5,
+    bool details = true,
   }) async {
     try {
       print('🚀 Getting complete feeds (page: $page, pageSize: $pageSize, maxFeeds: $maxFeeds)');
       
       final response = await http.get(
-        Uri.parse('$_apiBaseUrl/feeds/complete?page=$page&page_size=$pageSize&max_feeds=$maxFeeds'),
+        Uri.parse('$_apiBaseUrl/feeds/complete?page=$page&page_size=$pageSize&max_feeds=$maxFeeds&details=${details ? 'true' : 'false'}'),
         headers: _headers,
       ).timeout(const Duration(seconds: 120));
 
@@ -737,7 +755,7 @@ class AliExpressService {
               'display_name': feed.displayName,
               'description': feed.description,
               'product_count': feed.productCount,
-              'products': products.products.map((p) => p.toJson()).toList(),
+              'products': products.products.map((p) => p.toMap()).toList(),
             });
           } catch (e) {
             print('⚠️ Fallback failed for feed ${feed.feedName}: $e');

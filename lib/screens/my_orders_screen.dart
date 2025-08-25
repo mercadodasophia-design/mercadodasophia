@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../services/order_tracking_service.dart';
 import '../services/auth_service.dart';
+import '../providers/cart_provider.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({super.key});
@@ -27,10 +29,30 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   void _checkAuthentication() {
     final authService = Provider.of<AuthService>(context, listen: false);
     if (!authService.isAuthenticated) {
-      Navigator.pushReplacementNamed(context, '/login');
+      context.go('/login');
       return;
     }
     _loadOrders();
+    _checkAndClearCartIfNeeded();
+  }
+
+  Future<void> _checkAndClearCartIfNeeded() async {
+    try {
+      final cartProvider = Provider.of<CartProvider>(context, listen: false);
+      final wasCleared = await cartProvider.checkAndClearCartIfPaymentApproved();
+      
+      if (wasCleared && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Pagamento confirmado! Carrinho limpo automaticamente.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Erro ao verificar carrinho: $e');
+    }
   }
 
   Future<void> _loadOrders() async {
@@ -39,17 +61,32 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     });
 
     try {
-      // Simular carregamento de pedidos do usuário
-      final userOrders = await OrderTrackingService.getUserOrders('current_user_id');
+      // Obter ID do usuário logado
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final user = authService.currentUser;
+      
+      if (user == null) {
+        throw Exception('Usuário não autenticado');
+      }
+      
+      print('👤 Usuário logado: ${user.uid} - ${user.email}');
+      
+      // Buscar pedidos reais do Firebase
+      final userOrders = await OrderTrackingService.getUserOrders(user.uid);
       
       setState(() {
         orders = userOrders;
         isLoading = false;
       });
+      
+      print('📦 Pedidos carregados: ${orders.length}');
+      
     } catch (e) {
       setState(() {
         isLoading = false;
       });
+      
+      print('❌ Erro ao carregar pedidos: $e');
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -73,6 +110,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       return orders.where((order) => order.status == 'cancelled').toList();
     } else if (selectedFilter == 'Enviado') {
       return orders.where((order) => order.status == 'shipped').toList();
+    } else if (selectedFilter == 'Confirmado') {
+      return orders.where((order) => order.status == 'confirmed').toList();
+    } else if (selectedFilter == 'Aguardando Pagamento') {
+      return orders.where((order) => order.status == 'pending').toList();
     }
     return orders;
   }
@@ -98,7 +139,13 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pushReplacementNamed(context, '/products'),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/produtos');
+            }
+          },
         ),
       ),
       body: isLoading
@@ -171,13 +218,15 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       children: [
                         _buildFilterChip('Todos', selectedFilter == 'Todos'),
                         const SizedBox(width: 8),
+                        _buildFilterChip('Aguardando Pagamento', selectedFilter == 'Aguardando Pagamento'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Confirmado', selectedFilter == 'Confirmado'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Enviado', selectedFilter == 'Enviado'),
+                        const SizedBox(width: 8),
                         _buildFilterChip('Entregue', selectedFilter == 'Entregue'),
                         const SizedBox(width: 8),
-                        _buildFilterChip('Em trânsito', selectedFilter == 'Em trânsito'),
-                        const SizedBox(width: 8),
                         _buildFilterChip('Cancelado', selectedFilter == 'Cancelado'),
-                        const SizedBox(width: 8),
-                        _buildFilterChip('Devolução', selectedFilter == 'Devolução'),
                       ],
                     ),
                   ),
@@ -258,7 +307,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                           ),
                         ),
                         const Text(
-                          'São Paulo/SP - CEP: 01234-567',
+                          'República, São Paulo - SP, 01037-010',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.white70,
@@ -269,7 +318,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                           alignment: WrapAlignment.center,
                           spacing: 16,
                           children: [
-                            _buildFooterContact(Icons.phone, '(11) 99999-9999'),
+                            _buildFooterContact(Icons.phone, '(85) 99764-0050'),
                             _buildFooterContact(Icons.email, 'contato@mercadodasophia.com'),
                           ],
                         ),
@@ -687,10 +736,14 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   // Helper functions for status
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'confirmed':
+      case 'pending':
         return Colors.orange;
-      case 'shipped':
+      case 'confirmed':
         return Colors.blue;
+      case 'processing':
+        return Colors.purple;
+      case 'shipped':
+        return Colors.indigo;
       case 'delivered':
         return Colors.green;
       case 'cancelled':
@@ -702,8 +755,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   IconData _getStatusIcon(String status) {
     switch (status.toLowerCase()) {
+      case 'pending':
+        return Icons.payment;
       case 'confirmed':
         return Icons.check_circle;
+      case 'processing':
+        return Icons.build;
       case 'shipped':
         return Icons.local_shipping;
       case 'delivered':
@@ -717,8 +774,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   String _getStatusText(String status) {
     switch (status.toLowerCase()) {
+      case 'pending':
+        return 'Aguardando Pagamento';
       case 'confirmed':
         return 'Confirmado';
+      case 'processing':
+        return 'Processando';
       case 'shipped':
         return 'Enviado';
       case 'delivered':

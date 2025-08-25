@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/product.dart';
+import '../models/product_model.dart';
 import '../services/product_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/product_card_v2.dart';
+import '../widgets/friendly_router.dart';
 import '../theme/app_theme.dart';
 
 
@@ -63,7 +64,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${product.name} removido dos favoritos'),
+        content: Text('${product.titulo} removido dos favoritos'),
         backgroundColor: AppTheme.primaryColor,
         action: SnackBarAction(
           label: 'Desfazer',
@@ -278,7 +279,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                           ),
                         ),
                         const Text(
-                          'São Paulo/SP - CEP: 01234-567',
+                          'República, São Paulo - SP, 01037-010',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.white70,
@@ -289,7 +290,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                           alignment: WrapAlignment.center,
                           spacing: 16,
                           children: [
-                            _buildFooterContact(Icons.phone, '(11) 99999-9999'),
+                            _buildFooterContact(Icons.phone, '(85) 99764-0050'),
                             _buildFooterContact(Icons.email, 'contato@mercadodasophia.com'),
                           ],
                         ),
@@ -425,10 +426,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   void _showProductDetails(Product product) {
-    Navigator.pushNamed(
-      context,
-      '/product_detail',
-      arguments: {'product': product},
-    );
+    // Usar URLs amigáveis
+    FriendlyNavigator.pushProduct(context, product);
   }
 } 

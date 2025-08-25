@@ -1,4 +1,4 @@
-import 'product.dart';
+import 'product_model.dart';
 
 class Feed {
   final String feedName;
@@ -56,7 +56,7 @@ class FeedProducts {
     return FeedProducts(
       feedName: json['feed_name'] ?? '',
       products: (json['products'] as List?)
-          ?.map((p) => Product.fromJson(p))
+          ?.map((p) => Product.fromMap(p, p['id'] ?? ''))
           .toList() ?? [],
       pagination: PaginationInfo.fromJson(json['pagination'] ?? {}),
     );
@@ -65,7 +65,7 @@ class FeedProducts {
   Map<String, dynamic> toJson() {
     return {
       'feed_name': feedName,
-      'products': products.map((p) => p.toJson()).toList(),
+      'products': products.map((p) => p.toMap()).toList(),
       'pagination': pagination.toJson(),
     };
   }

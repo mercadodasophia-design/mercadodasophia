@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 
 import 'screens/admin/admin_dashboard_screen.dart';
-import 'screens/admin/admin_products_screen.dart';
 import 'screens/admin/admin_authorizations_screen.dart';
 import 'screens/admin/admin_aliexpress_search_screen.dart';
 import 'screens/admin/admin_imported_products_screen.dart';
@@ -15,10 +16,18 @@ import 'screens/admin/admin_users_screen.dart';
 import 'screens/admin/admin_sync_settings_screen.dart';
 import 'screens/admin/admin_orders_screen.dart';
 import 'screens/admin/admin_aliexpress_login_screen.dart';
+import 'screens/admin/admin_login_screen.dart';
 import 'screens/admin/admin_feed_test_screen.dart';
+import 'screens/admin/admin_feeds_screen.dart';
+import 'screens/admin/admin_add_product_screen.dart';
+import 'screens/admin/admin_banners_screen.dart';
+import 'screens/admin/admin_banners_loja_screen.dart';
+import 'screens/admin/admin_banners_sexyshop_screen.dart';
+import 'screens/admin/admin_add_banner_screen.dart';
 import 'services/auth_service.dart';
 import 'services/firebase_product_service.dart';
 import 'services/aliexpress_auth_service.dart';
+import 'services/admin_auth_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -55,6 +64,7 @@ class MercadoDaSophiaAdminApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         home: const AuthWrapper(),
         routes: {
+          '/admin_login': (context) => const AdminLoginScreen(),
           '/admin_aliexpress_login': (context) => const AdminAliExpressLoginScreen(),
           '/admin_dashboard': (context) => const AdminDashboardScreen(),
           '/admin_products': (context) => const AdminManageProductsScreen(),
@@ -78,6 +88,12 @@ class MercadoDaSophiaAdminApp extends StatelessWidget {
           '/admin/settings': (context) => const AdminSyncSettingsScreen(),
           '/admin/orders': (context) => const AdminOrdersScreen(),
           '/admin/feed-test': (context) => const AdminFeedTestScreen(),
+          '/admin/feeds': (context) => const AdminFeedsScreen(),
+          '/admin/add-product': (context) => const AdminAddProductScreen(),
+          '/admin/banners': (context) => const AdminBannersScreen(),
+          '/admin/banners-loja': (context) => const AdminBannersLojaScreen(),
+          '/admin/banners-sexyshop': (context) => const AdminBannersSexyShopScreen(),
+          '/admin/add-banner': (context) => const AdminAddBannerScreen(),
           // Rotas temporárias para funcionalidades não implementadas
           '/admin/reports': (context) => _buildComingSoonScreen('Relatórios'),
           '/admin/backup': (context) => _buildComingSoonScreen('Backup'),
@@ -147,17 +163,23 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   Future<void> _checkAuthorization() async {
-    final authService = Provider.of<AliExpressAuthService>(context, listen: false);
-    final isAuthorized = await authService.checkAuthorizationStatus(silent: true);
+    final authService = Provider.of<AuthService>(context, listen: false);
     
-    if (mounted) {
-      if (isAuthorized) {
-        // Se já está autorizado, vai para o dashboard
+    // Verificar se o usuário está autenticado no Firebase
+    if (authService.isAuthenticated) {
+      // Verificar se tem permissão de admin
+      final hasAdminPermission = await AdminAuthService.isAdmin();
+      
+      if (hasAdminPermission) {
+        // Se tem permissão, vai para o dashboard
         Navigator.of(context).pushReplacementNamed('/admin_dashboard');
       } else {
-        // Se não está autorizado, vai para a tela de login AliExpress
-        Navigator.of(context).pushReplacementNamed('/admin_aliexpress_login');
+        // Se não tem permissão, vai para a tela de login
+        Navigator.of(context).pushReplacementNamed('/admin_login');
       }
+    } else {
+      // Se não está autenticado, vai para a tela de login
+      Navigator.of(context).pushReplacementNamed('/admin_login');
     }
   }
 

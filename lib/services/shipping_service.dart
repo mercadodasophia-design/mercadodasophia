@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/product.dart';
+import '../models/product_model.dart';
 import '../config/api_config.dart';
 
 class ShippingService {
@@ -140,7 +140,7 @@ class ShippingService {
             'product_id': product.id,
             'quantity': 1,
             'weight': _calculateProductWeight(product),
-            'price': product.price,
+            'price': product.preco,
             'length': _calculateProductLength(product),
             'height': _calculateProductHeight(product),
             'width': _calculateProductWidth(product),
@@ -182,7 +182,7 @@ class ShippingService {
     }
     
     // Peso padrão baseado na categoria
-    switch (product.category.toLowerCase()) {
+    switch (product.categoria.toLowerCase()) {
       case 'eletrônicos':
       case 'celulares':
       case 'computadores':
@@ -207,7 +207,7 @@ class ShippingService {
     }
     
     // Comprimento padrão baseado na categoria
-    switch (product.category.toLowerCase()) {
+    switch (product.categoria.toLowerCase()) {
       case 'eletrônicos':
       case 'celulares':
         return 15.0;
@@ -233,7 +233,7 @@ class ShippingService {
     }
     
     // Altura padrão baseada na categoria
-    switch (product.category.toLowerCase()) {
+    switch (product.categoria.toLowerCase()) {
       case 'eletrônicos':
       case 'celulares':
         return 5.0;
@@ -259,7 +259,7 @@ class ShippingService {
     }
     
     // Largura padrão baseada na categoria
-    switch (product.category.toLowerCase()) {
+    switch (product.categoria.toLowerCase()) {
       case 'eletrônicos':
       case 'celulares':
         return 10.0;

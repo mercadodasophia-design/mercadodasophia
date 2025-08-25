@@ -5,7 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../services/auth_service.dart';
-import '../models/product.dart';
+import '../models/product_model.dart';
+import '../providers/location_provider.dart';
 import '../theme/app_theme.dart';
 
 class ShippingCalculatorWidget extends StatefulWidget {
@@ -60,22 +61,100 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
 
   Future<void> _loadUserAddress() async {
     try {
-      // Simular carregamento do endereço do usuário logado
-      // Em uma implementação real, isso viria do Firestore
-      setState(() {
-        _userAddress = 'Rua das Flores, 123 - Centro, São Paulo - SP';
-        _userCep = '01234-567';
-        _cepController.text = _userCep!;
-      });
+      final locationProvider = context.read<LocationProvider>();
       
-      // Calcular frete real para usuário logado
-      await _calculateShipping();
+      // Verificar se o usuário tem endereço salvo
+      if (locationProvider.hasSavedAddress && locationProvider.savedAddress != null) {
+        final address = locationProvider.savedAddress!;
+        print('🏠 Endereço salvo encontrado: $address');
+        
+        final cep = address['cep'] ?? '';
+        final street = address['street'] ?? '';
+        final number = address['number'] ?? '';
+        final neighborhood = address['neighborhood'] ?? '';
+        final city = address['city'] ?? '';
+        final state = address['state'] ?? '';
+        
+        print('📍 Campos do endereço:');
+        print('  - CEP: $cep');
+        print('  - Street: $street');
+        print('  - Number: $number');
+        print('  - Neighborhood: $neighborhood');
+        print('  - City: $city');
+        print('  - State: $state');
+        
+        setState(() {
+          _userAddress = '$street, $number - $neighborhood, $city - $state';
+          _userCep = cep;
+          _cepController.text = cep;
+        });
+        
+        // Calcular frete real para usuário logado
+        await _calculateShipping();
+             } else if (locationProvider.hasLocation && locationProvider.currentLocation != null) {
+         // Usar localização atual se não tiver endereço salvo
+         final location = locationProvider.currentLocation!;
+         setState(() {
+           _userAddress = location.address ?? location.formattedAddress;
+           _userCep = location.postalCode ?? '';
+           _cepController.text = location.postalCode ?? '';
+         });
+        
+        // Calcular frete real para usuário logado
+        await _calculateShipping();
+      } else {
+        // Se não tem endereço nem localização, mostrar mensagem
+        setState(() {
+          _userAddress = 'Endereço não configurado';
+          _userCep = '';
+        });
+      }
     } catch (e) {
       print('Erro ao carregar endereço do usuário: $e');
+      setState(() {
+        _userAddress = 'Erro ao carregar endereço';
+        _userCep = '';
+      });
     }
   }
 
+  // Buscar endereço do CEP via ViaCEP
+  Future<Map<String, dynamic>> _getCepAddress(String cep) async {
+    try {
+      // Limpar CEP (remover hífens e espaços)
+      final cleanCep = cep.replaceAll(RegExp(r'[^\d]'), '');
+      
+      if (cleanCep.length != 8) {
+        throw Exception('CEP inválido');
+      }
 
+      final response = await http.get(
+        Uri.parse('https://viacep.com.br/ws/$cleanCep/json/'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['erro'] == true) {
+          throw Exception('CEP não encontrado');
+        }
+
+        return {
+          'logradouro': data['logradouro'] ?? '',
+          'bairro': data['bairro'] ?? '',
+          'localidade': data['localidade'] ?? '',
+          'uf': data['uf'] ?? '',
+          'cep': data['cep'] ?? cep,
+        };
+      } else {
+        throw Exception('Erro ao buscar CEP: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Erro ao buscar endereço do CEP $cep: $e');
+      rethrow;
+    }
+  }
 
   // Buscar cotação atual do dólar
   Future<double> _getDollarRate() async {
@@ -110,6 +189,34 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
       _shippingData = null;
     });
 
+    // Buscar endereço real do CEP
+    final cep = _cepController.text.trim();
+    Map<String, dynamic>? realAddress;
+    
+    if (cep.isNotEmpty) {
+      try {
+        realAddress = await _getCepAddress(cep);
+        print('📍 Endereço encontrado para CEP $cep: $realAddress');
+      } catch (e) {
+        print('❌ Erro ao buscar endereço do CEP: $e');
+        // Usar endereço padrão se falhar
+        realAddress = {
+          'logradouro': 'Endereço não encontrado',
+          'bairro': '',
+          'localidade': 'São Paulo',
+          'uf': 'SP',
+        };
+      }
+    } else {
+      // Usar endereço padrão se não há CEP
+      realAddress = {
+        'logradouro': 'CEP não informado',
+        'bairro': '',
+        'localidade': 'São Paulo',
+        'uf': 'SP',
+      };
+    }
+
     // Simular delay de carregamento
     await Future.delayed(const Duration(seconds: 1));
     print('⏱️ Delay concluído, verificando frete...');
@@ -126,12 +233,7 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
       
       final simulatedData = {
         'success': true,
-        'address': {
-          'logradouro': 'Rua das Flores',
-          'bairro': 'Centro',
-          'localidade': 'São Paulo',
-          'uf': 'SP',
-        },
+        'address': realAddress,
         'shipping': [
           {
             'service_code': 'FREE_SHIPPING',
@@ -199,12 +301,7 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
       print('❌ Não há valor de frete disponível - aplicando frete gratuito');
       final simulatedData = {
         'success': true,
-        'address': {
-          'logradouro': 'Rua das Flores',
-          'bairro': 'Centro',
-          'localidade': 'São Paulo',
-          'uf': 'SP',
-        },
+        'address': realAddress,
         'shipping': [
           {
             'service_code': 'FREE_SHIPPING',
@@ -236,12 +333,7 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
     // Simular dados de frete com apenas um tipo de envio padrão
     final simulatedData = {
       'success': true,
-      'address': {
-        'logradouro': 'Rua das Flores',
-        'bairro': 'Centro',
-        'localidade': 'São Paulo',
-        'uf': 'SP',
-      },
+      'address': realAddress,
       'shipping': [
         {
           'service_code': 'OWN_ECONOMY',
@@ -455,13 +547,13 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
         ),
         const SizedBox(height: 8),
         
-                 // Listar todas as opções disponíveis
-         ...shippingOptions.map((option) {
-           final serviceCode = option['service_code'] ?? '';
-           final serviceName = option['service_name'] ?? 'Frete';
-           final price = (option['price'] ?? 0.0).toDouble();
-           final deliveryTime = _parseDeliveryTime(option['estimated_days']);
-           final carrier = option['carrier'] ?? '';
+        // Listar todas as opções disponíveis
+        ...shippingOptions.map((option) {
+          final serviceCode = option['service_code'] ?? '';
+          final serviceName = option['service_name'] ?? 'Frete';
+          final price = (option['price'] ?? 0.0).toDouble();
+          final deliveryTime = _parseDeliveryTime(option['estimated_days']);
+          final carrier = option['carrier'] ?? '';
           
           return Column(
             children: [
@@ -539,22 +631,22 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
                       color: isSelected ? AppTheme.primaryColor : Colors.black87,
                     ),
                   ),
-                                                       Text(
+                  Text(
                     _calculateDeliveryDates(deliveryTime),
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
                     ),
                   ),
-                   if (carrier != null && carrier.isNotEmpty) ...[
-                     Text(
-                       'Via $carrier',
-                       style: TextStyle(
-                         fontSize: 12,
-                         color: Colors.grey[500],
-                       ),
-                     ),
-                   ],
+                  if (carrier != null && carrier.isNotEmpty) ...[
+                    Text(
+                      'Via $carrier',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -629,32 +721,56 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
         ),
         const SizedBox(height: 16),
         
-        // Botão para calcular frete
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : () {
-              print('🔘 Botão Calcular Frete clicado!');
-              print('📊 Estado _isLoading: $_isLoading');
-              _calculateShipping();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+        // Botões de ação
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : () {
+                  print('🔘 Botão Calcular Frete clicado!');
+                  print('📊 Estado _isLoading: $_isLoading');
+                  _calculateShipping();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text('Calcular Frete'),
               ),
             ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Text('Calcular Frete'),
-          ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: () {
+                // TODO: Implementar tela para alterar endereço
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Funcionalidade de alterar endereço será implementada em breve'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.edit_location, size: 18),
+              label: const Text('Alterar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[200],
+                foregroundColor: Colors.black87,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -664,6 +780,47 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Mensagem para usuário não logado
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.orange[200]!),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.orange[600], size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Faça login para usar seu endereço salvo',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Digite um CEP para calcular o frete',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        
         // Campo CEP para usuário não logado
         Row(
           children: [

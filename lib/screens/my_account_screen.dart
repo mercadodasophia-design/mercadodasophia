@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 
@@ -26,7 +27,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
   void _checkAuthentication() {
     final authService = Provider.of<AuthService>(context, listen: false);
     if (!authService.isAuthenticated) {
-      Navigator.pushReplacementNamed(context, '/login');
+      context.go('/login');
       return;
     }
     _loadUserData();
@@ -76,7 +77,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
         ),
                          leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/products', (route) => false),
+          onPressed: () => context.go('/produtos'),
         ),
         actions: [
           IconButton(
@@ -336,7 +337,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                           ),
                         ),
                         const Text(
-                          'São Paulo/SP - CEP: 01234-567',
+                          'República, São Paulo - SP, 01037-010',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.white70,
@@ -347,7 +348,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                           alignment: WrapAlignment.center,
                           spacing: 16,
                           children: [
-                            _buildFooterContact(Icons.phone, '(11) 99999-9999'),
+                            _buildFooterContact(Icons.phone, '(85) 99764-0050'),
                             _buildFooterContact(Icons.email, 'contato@mercadodasophia.com'),
                           ],
                         ),
@@ -573,7 +574,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
   }
 
   void _manageAddresses() {
-    Navigator.pushNamed(context, '/address_management');
+    context.go('/enderecos');
   }
 
   void _managePhones() {
@@ -590,7 +591,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
   }
 
   void _orderHistory() {
-    Navigator.pushNamed(context, '/my_orders');
+    context.go('/meus-pedidos');
   }
 
   void _trackOrder() {
@@ -718,7 +719,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                              try {
                  final authService = Provider.of<AuthService>(context, listen: false);
                  await authService.signOut();
-                 Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                 context.go('/produtos');
                  ScaffoldMessenger.of(context).showSnackBar(
                    const SnackBar(
                      content: Text('Logout realizado com sucesso!'),
@@ -751,7 +752,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
       selected: false,
       onSelected: (selected) {
         // Navegar para produtos com categoria selecionada
-        Navigator.pushNamed(context, '/products');
+        context.go('/produtos');
       },
     );
   }
@@ -1021,7 +1022,7 @@ class _PhoneEditorSheetState extends State<PhoneEditorSheet> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => context.pop(),
                 ),
                 const Expanded(
                   child: Text(
@@ -1093,7 +1094,7 @@ class _PhoneEditorSheetState extends State<PhoneEditorSheet> {
                                 controller: _phoneController,
                                 decoration: const InputDecoration(
                                   labelText: 'Número',
-                                  hintText: '(11) 99999-9999',
+                                  hintText: '(85) 99764-0050',
                                   border: OutlineInputBorder(),
                                 ),
                                 keyboardType: TextInputType.phone,

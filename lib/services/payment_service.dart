@@ -163,6 +163,99 @@ class PaymentService {
       return null;
     }
   }
+
+  // Atualizar status do pedido no Firebase
+  static Future<bool> updateOrderStatus({
+    required String orderId,
+    required String status,
+    String? paymentId,
+    String? aliexpressOrderId,
+  }) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      
+      final updateData = {
+        'status': status,
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+      
+      if (paymentId != null) {
+        updateData['paymentId'] = paymentId;
+        updateData['paymentStatus'] = 'approved';
+      }
+      
+      if (aliexpressOrderId != null) {
+        updateData['aliexpressOrderId'] = aliexpressOrderId;
+      }
+      
+      await firestore.collection('orders').doc(orderId).update(updateData);
+      
+      print('✅ Status do pedido $orderId atualizado para: $status');
+      return true;
+    } catch (e) {
+      print('❌ Erro ao atualizar status do pedido: $e');
+      return false;
+    }
+  }
+
+  // Verificar status do pagamento e finalizar pedido
+  static Future<bool> checkPaymentAndFinalize(String paymentId) async {
+    try {
+      // 1. Verificar status do pagamento
+      final status = await getPaymentStatus(paymentId);
+      if (status == null || !status.isApproved) {
+        print('❌ Pagamento não aprovado ou status não encontrado');
+        return false;
+      }
+      
+      print('✅ Pagamento aprovado! Aguardando processamento do webhook...');
+      return true;
+      
+    } catch (e) {
+      print('❌ Erro ao verificar status do pagamento: $e');
+      return false;
+    }
+  }
+
+  // Buscar pedido no Firebase pelo payment_id
+  static Future<Map<String, dynamic>?> getOrderByPaymentId(String paymentId) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final querySnapshot = await firestore
+          .collection('orders')
+          .where('payment_id', isEqualTo: paymentId)
+          .limit(1)
+          .get();
+      
+      if (querySnapshot.docs.isNotEmpty) {
+        final doc = querySnapshot.docs.first;
+        return {
+          'id': doc.id,
+          ...doc.data(),
+        };
+      }
+      
+      return null;
+    } catch (e) {
+      print('❌ Erro ao buscar pedido no Firebase: $e');
+      return null;
+    }
+  }
+
+
+
+  // Limpar carrinho do usuário
+  static Future<bool> clearUserCart(String userEmail) async {
+    try {
+      // Aqui você pode implementar a lógica para limpar o carrinho
+      // Por exemplo, salvar no Firebase que o carrinho foi limpo
+      print('✅ Carrinho do usuário $userEmail será limpo após confirmação');
+      return true;
+    } catch (e) {
+      print('❌ Erro ao limpar carrinho: $e');
+      return false;
+    }
+  }
 }
 
 // Modelos de dados

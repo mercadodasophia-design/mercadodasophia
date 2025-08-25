@@ -20,9 +20,9 @@ class _AdminAliExpressSearchScreenState extends State<AdminAliExpressSearchScree
   String _searchQuery = '';
   
   // Categorias
-  List<Category> _categories = [];
+  List<String> _categories = [];
   bool _isLoadingCategories = false;
-  Category? _selectedCategory;
+  String? _selectedCategory;
 
   @override
   void initState() {
@@ -38,7 +38,8 @@ class _AdminAliExpressSearchScreenState extends State<AdminAliExpressSearchScree
     });
 
     try {
-      final categories = await CategoryService.getCategories();
+      final categoryService = CategoryService();
+      final categories = await categoryService.getCategories();
       setState(() {
         _categories = categories;
         _isLoadingCategories = false;
@@ -52,7 +53,7 @@ class _AdminAliExpressSearchScreenState extends State<AdminAliExpressSearchScree
   }
 
   // Buscar produtos por categoria
-  Future<void> _searchByCategory(Category category) async {
+  Future<void> _searchByCategory(String category) async {
     setState(() {
       _selectedCategory = category;
       _isLoading = true;
@@ -60,11 +61,8 @@ class _AdminAliExpressSearchScreenState extends State<AdminAliExpressSearchScree
     });
 
     try {
-      final products = await CategoryService.getProductsByCategory(category.id, category.name);
-      setState(() {
-        _products = products;
-        _isLoading = false;
-      });
+      // Por enquanto, vamos fazer uma busca por texto usando o nome da categoria
+      await _searchByText(category);
     } catch (e) {
       setState(() {
         _errorMessage = 'Erro ao buscar produtos da categoria: $e';
@@ -440,12 +438,12 @@ class _AdminAliExpressSearchScreenState extends State<AdminAliExpressSearchScree
                       itemCount: _categories.length,
                       itemBuilder: (context, index) {
                         final category = _categories[index];
-                        final isSelected = _selectedCategory?.id == category.id;
+                        final isSelected = _selectedCategory == category;
                         return Container(
                           margin: const EdgeInsets.only(right: 8),
                           child: FilterChip(
                             label: Text(
-                                category.name,
+                                category,
                                 style: TextStyle(
                                 color: isSelected ? Colors.white : Colors.black87,
                                 fontSize: 12,

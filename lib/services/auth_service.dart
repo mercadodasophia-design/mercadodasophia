@@ -27,6 +27,9 @@ class AuthService extends ChangeNotifier {
       // Atualizar último login no Firestore
       await _updateLastLogin(credential.user!.uid);
       
+      // Migrar carrinho local para Firebase se necessário
+      await _migrateLocalCart();
+      
       notifyListeners();
       return credential;
     } on FirebaseAuthException catch (e) {
@@ -144,6 +147,9 @@ class AuthService extends ChangeNotifier {
         await _updateLastLogin(userCredential.user!.uid);
       }
 
+      // Migrar carrinho local para Firebase se necessário
+      await _migrateLocalCart();
+
       notifyListeners();
       print('✅ [DEBUG] Google Sign-In concluído com sucesso!');
       return userCredential;
@@ -236,6 +242,17 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       // Log do erro mas não falhar o login
       print('Erro ao atualizar último login: $e');
+    }
+  }
+
+  // Migrar carrinho local para Firebase
+  Future<void> _migrateLocalCart() async {
+    try {
+      // A migração será feita pelo CartProvider quando necessário
+      // Aqui apenas notificamos que o usuário fez login
+      print('🛒 Usuário fez login - carrinho local será migrado se necessário');
+    } catch (e) {
+      print('Erro ao migrar carrinho local: $e');
     }
   }
 

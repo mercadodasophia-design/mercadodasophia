@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import '../utils/google_signin_validator.dart';
@@ -24,6 +25,12 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
   final AuthService _authService = AuthService();
 
   @override
+  void initState() {
+    super.initState();
+    _checkAuthStatus();
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
@@ -31,6 +38,18 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  void _checkAuthStatus() {
+    // Verificar se o usuário já está logado
+    if (_authService.isAuthenticated) {
+      // Se já estiver logado, redirecionar para produtos
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.go('/produtos');
+        }
+      });
+    }
   }
 
   @override
@@ -114,7 +133,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(25),
                         onTap: () {
-                          Navigator.pushReplacementNamed(context, '/products');
+                          context.go('/produtos');
                         },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -270,7 +289,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                                 style: const TextStyle(color: AppTheme.textPrimaryColor),
                                 decoration: InputDecoration(
                                   labelText: 'Telefone (Opcional)',
-                                  hintText: '(11) 99999-9999',
+                                  hintText: '(85) 99764-0050',
                                   prefixIcon: const Icon(Icons.phone_outlined, color: AppTheme.textSecondaryColor),
                                   labelStyle: const TextStyle(color: AppTheme.textSecondaryColor),
                                   hintStyle: const TextStyle(color: AppTheme.textLightColor),
@@ -555,7 +574,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
             backgroundColor: AppTheme.successColor,
           ),
         );
-        Navigator.pushReplacementNamed(context, '/products');
+        context.go('/produtos');
       }
     } catch (e) {
       if (mounted) {
@@ -684,7 +703,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
               backgroundColor: AppTheme.successColor,
             ),
           );
-          Navigator.pushReplacementNamed(context, '/products');
+          context.go('/produtos');
         }
       } catch (e) {
         if (mounted) {

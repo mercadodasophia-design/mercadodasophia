@@ -208,8 +208,8 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                     [
                       'Dúvidas sobre privacidade? Entre em contato:',
                       'Email: privacidade@mercadodasophia.com',
-                      'Telefone: (11) 99999-9999',
-                      'Endereço: Rua das Flores, 123 - Centro, São Paulo/SP',
+                      'Telefone: (85) 99764-0050',
+                      'Endereço: Zona Central de São Paulo, República, São Paulo - SP, 01037-010',
                     ],
                   ),
                   
@@ -315,7 +315,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                           ),
                         ),
                         const Text(
-                          'São Paulo/SP - CEP: 01234-567',
+                          'República, São Paulo - SP, 01037-010',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.white70,
@@ -326,7 +326,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                           alignment: WrapAlignment.center,
                           spacing: 16,
                           children: [
-                            _buildFooterContact(Icons.phone, '(11) 99999-9999'),
+                            _buildFooterContact(Icons.phone, '(85) 99764-0050'),
                             _buildFooterContact(Icons.email, 'contato@mercadodasophia.com'),
                           ],
                         ),

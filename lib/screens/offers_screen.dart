@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/product.dart';
+import '../models/product_model.dart';
 import '../services/product_service.dart';
 import '../widgets/product_card_v2.dart';
+import '../widgets/friendly_router.dart';
 import '../theme/app_theme.dart';
 
 
@@ -29,7 +30,7 @@ class _OffersScreenState extends State<OffersScreen> {
     });
     
     try {
-      final products = await ProductService.getOnSaleProducts();
+      final products = await ProductService.getProductsWithDiscount();
       setState(() {
         offersProducts = products;
         isLoading = false;
@@ -46,7 +47,7 @@ class _OffersScreenState extends State<OffersScreen> {
     if (selectedCategory == null || selectedCategory == 'Todos') {
       return offersProducts;
     } else {
-      return offersProducts.where((product) => product.category == selectedCategory).toList();
+      return offersProducts.where((product) => product.categoria == selectedCategory).toList();
     }
   }
 
@@ -264,7 +265,7 @@ class _OffersScreenState extends State<OffersScreen> {
                           ),
                         ),
                         const Text(
-                          'São Paulo/SP - CEP: 01234-567',
+                          'República, São Paulo - SP, 01037-010',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.white70,
@@ -275,7 +276,7 @@ class _OffersScreenState extends State<OffersScreen> {
                           alignment: WrapAlignment.center,
                           spacing: 16,
                           children: [
-                            _buildFooterContact(Icons.phone, '(11) 99999-9999'),
+                            _buildFooterContact(Icons.phone, '(85) 99764-0050'),
                             _buildFooterContact(Icons.email, 'contato@mercadodasophia.com'),
                           ],
                         ),
@@ -390,10 +391,7 @@ class _OffersScreenState extends State<OffersScreen> {
   }
 
   void _showProductDetails(Product product) {
-    Navigator.pushNamed(
-      context,
-      '/product_detail',
-      arguments: {'product': product},
-    );
+    // Usar URLs amigáveis
+    FriendlyNavigator.pushProduct(context, product);
   }
 } 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/product.dart';
+import '../models/product_model.dart';
 import '../theme/app_theme.dart';
 
 class ProductCardCompact extends StatelessWidget {
@@ -54,7 +54,7 @@ class ProductCardCompact extends StatelessWidget {
                       Expanded(
                         flex: 2,
                         child: Text(
-                          product.name,
+                          product.titulo,
                           style: theme.textTheme.labelLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -72,19 +72,66 @@ class ProductCardCompact extends StatelessWidget {
                           ),
                           const SizedBox(width: 2),
                           Text(
-                            '${product.rating}',
+                            '${0.0}',
                             style: theme.textTheme.labelSmall,
                           ),
                         ],
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        'R\$ ${product.price.toStringAsFixed(2)}',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.bold,
+                      // Preço com desconto
+                      if (product.descontoPercentual != null && product.descontoPercentual! > 0)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Preço original riscado
+                            Text(
+                              'R\$ ${product.preco.toStringAsFixed(2)}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: Colors.grey[600],
+                                decoration: TextDecoration.lineThrough,
+                                decorationColor: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            // Preço com desconto
+                            Row(
+                              children: [
+                                Text(
+                                  'R\$ ${(product.preco * (1 - (product.descontoPercentual! / 100))).toStringAsFixed(2)}',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    color: AppTheme.primaryColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF6B9D),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                  child: Text(
+                                    '-${product.descontoPercentual!.toStringAsFixed(0)}%',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 8,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        )
+                      else
+                        // Preço normal sem desconto
+                        Text(
+                          'R\$ ${product.preco.toStringAsFixed(2)}',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),

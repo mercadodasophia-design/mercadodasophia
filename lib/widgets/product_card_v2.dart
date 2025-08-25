@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/product.dart';
+import '../models/product_model.dart';
 import '../theme/app_theme.dart';
 
 /// ProductCard V2 - Layout otimizado com melhor distribuição de espaço
@@ -42,10 +42,10 @@ class ProductCardV2 extends StatelessWidget {
               child: Stack(
                 children: [
                   // Imagem do produto ou placeholder
-                  product.imageUrl.isNotEmpty
+                  product.images.isNotEmpty
                       ? ClipRRect(
                           child: Image.network(
-                            product.imageUrl,
+                            product.images.isNotEmpty ? product.images.first : "",
                             width: double.infinity,
                             height: double.infinity,
                             fit: BoxFit.cover,
@@ -103,7 +103,7 @@ class ProductCardV2 extends StatelessWidget {
                 children: [
                   // Nome do produto
                   Text(
-                    product.name,
+                    product.titulo,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -113,23 +113,71 @@ class ProductCardV2 extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  // Preço destacado
-                  Text(
-                    'R\$ ${product.price.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                  // Preço com desconto
+                  if (product.descontoPercentual != null && product.descontoPercentual! > 0)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Preço original riscado
+                        Text(
+                          'R\$ ${product.preco.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[600],
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        // Preço com desconto
+                        Row(
+                          children: [
+                            Text(
+                              'R\$ ${(product.preco * (1 - (product.descontoPercentual! / 100))).toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFF6B9D),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: Text(
+                                '-${product.descontoPercentual!.toStringAsFixed(0)}%',
+                                style: const TextStyle(
+                                  fontSize: 8,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  else
+                    // Preço normal sem desconto
+                    Text(
+                      'R\$ ${product.preco.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 4),
                   // Vendas e avaliação
                   Row(
                     children: [
                       Expanded(
                         child: Text(
-                          product.reviewCount > 0 
-                              ? '${product.reviewCount} vendidos'
+                          0 > 0 
+                              ? '${0} vendidos'
                               : 'Novo produto',
                           style: TextStyle(
                             fontSize: 10,
@@ -147,7 +195,7 @@ class ProductCardV2 extends StatelessWidget {
                       ),
                       const SizedBox(width: 2),
                       Text(
-                        product.rating > 0 ? product.rating.toStringAsFixed(1) : 'N/A',
+                        0.0 > 0 ? 0.0.toStringAsFixed(1) : '',
                         style: TextStyle(
                           fontSize: 10,
                           color: Colors.grey[600],
@@ -156,26 +204,8 @@ class ProductCardV2 extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 2),
-                  // Informações adicionais
-                  if (product.isAvailable)
-                    Text(
-                      'Disponível em estoque',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: Colors.green[600],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    )
-                  else
-                    Text(
-                      'Fora de estoque',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: Colors.red[600],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+
+
                 ],
               ),
             ),

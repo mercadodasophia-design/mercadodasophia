@@ -1,0 +1,19 @@
+Campos principais que importam para Dropshipping
+
+sku_id → ID único da variação.
+
+sku_property_name + sku_property_value → características (ex.: cor: Laranja, tamanho: 45).
+
+sku_image → imagem da variação.
+
+offer_sale_price → preço atual de venda.
+
+offer_bulk_sale_price → preço com desconto por quantidade (se existir).
+
+sku_available_stock → estoque disponível.
+
+currency_code → moeda (nesse caso BRL).
+
+price_include_tax → se o preço já inclui impostos.
+
+sku_price → preço original (sem desconto).

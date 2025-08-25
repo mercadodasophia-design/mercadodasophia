@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class OrderTrackingService {
   static const String _baseUrl = 'https://service-api-aliexpress.mercadodasophia.com.br';
@@ -7,51 +8,37 @@ class OrderTrackingService {
   // Buscar pedidos do usuário
   static Future<List<Order>> getUserOrders(String userId) async {
     try {
-      // Por enquanto, simular dados
-      // Em produção, isso viria de uma API com autenticação
-      await Future.delayed(const Duration(seconds: 1));
+      print('🔍 Buscando pedidos do usuário: $userId');
       
-      return [
-        Order(
-          id: 'ORDER-1734786345123',
-          aliexpressOrderId: '8176391234567890',
-          status: 'confirmed',
-          items: [
-            OrderItem(
-              title: 'Smartphone Case Premium',
-              quantity: 1,
-              price: 29.99,
-              imageUrl: 'https://example.com/image.jpg',
-            )
-          ],
-          totalAmount: 29.99,
-          paymentStatus: 'approved',
-          shippingStatus: 'preparing',
-          createdAt: DateTime.now().subtract(const Duration(days: 2)),
-          estimatedDelivery: DateTime.now().add(const Duration(days: 15)),
-        ),
-        Order(
-          id: 'ORDER-1734700234567',
-          aliexpressOrderId: '8176391234567891',
-          status: 'shipped',
-          items: [
-            OrderItem(
-              title: 'Wireless Earbuds Pro',
-              quantity: 2,
-              price: 49.99,
-              imageUrl: 'https://example.com/image2.jpg',
-            )
-          ],
-          totalAmount: 99.98,
-          paymentStatus: 'approved',
-          shippingStatus: 'in_transit',
-          createdAt: DateTime.now().subtract(const Duration(days: 7)),
-          estimatedDelivery: DateTime.now().add(const Duration(days: 8)),
-          trackingCode: 'BR123456789CN',
-        ),
-      ];
+      // Buscar pedidos do Firebase
+      final firestore = FirebaseFirestore.instance;
+      final ordersSnapshot = await firestore
+          .collection('orders')
+          .where('userId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .get();
+      
+      print('📦 Encontrados ${ordersSnapshot.docs.length} pedidos no Firebase');
+      
+      final List<Order> orders = [];
+      
+      for (final doc in ordersSnapshot.docs) {
+        final data = doc.data();
+        print('📋 Dados do pedido ${doc.id}: ${jsonEncode(data)}');
+        
+        try {
+          final order = Order.fromFirebaseData(doc.id, data);
+          orders.add(order);
+        } catch (e) {
+          print('❌ Erro ao converter pedido ${doc.id}: $e');
+        }
+      }
+      
+      print('✅ Pedidos carregados com sucesso: ${orders.length}');
+      return orders;
+      
     } catch (e) {
-      print('❌ Erro ao buscar pedidos: $e');
+      print('❌ Erro ao buscar pedidos do Firebase: $e');
       return [];
     }
   }
@@ -150,6 +137,65 @@ class Order {
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       estimatedDelivery: DateTime.tryParse(json['estimated_delivery'] ?? ''),
       trackingCode: json['tracking_code'],
+    );
+  }
+  
+  factory Order.fromFirebaseData(String orderId, Map<String, dynamic> data) {
+    // Converter dados do Firebase para o formato da classe Order
+    final items = (data['items'] as List?)
+        ?.map((item) => OrderItem(
+              title: item['title'] ?? item['name'] ?? 'Produto',
+              quantity: item['quantity'] ?? 1,
+              price: (item['price'] ?? 0).toDouble(),
+              imageUrl: item['imageUrl'] ?? item['image'],
+            ))
+        .toList() ?? [];
+    
+    // Mapear status do Firebase para status da aplicação
+    String status = 'pending';
+    String shippingStatus = 'preparing';
+    
+    switch (data['status']) {
+      case 'aguardando_pagamento':
+        status = 'pending';
+        shippingStatus = 'preparing';
+        break;
+      case 'pago':
+        status = 'confirmed';
+        shippingStatus = 'preparing';
+        break;
+      case 'em_andamento':
+        status = 'processing';
+        shippingStatus = 'preparing';
+        break;
+      case 'pedido_criado':
+        status = 'confirmed';
+        shippingStatus = 'shipped';
+        break;
+      case 'entregue':
+        status = 'delivered';
+        shippingStatus = 'delivered';
+        break;
+      case 'cancelado':
+        status = 'cancelled';
+        shippingStatus = 'exception';
+        break;
+      default:
+        status = data['status'] ?? 'pending';
+        shippingStatus = 'preparing';
+    }
+    
+    return Order(
+      id: orderId,
+      aliexpressOrderId: data['aliexpressOrderId'],
+      status: status,
+      items: items,
+      totalAmount: (data['total'] ?? 0).toDouble(),
+      paymentStatus: data['paymentStatus'] ?? 'pending',
+      shippingStatus: shippingStatus,
+      createdAt: DateTime.tryParse(data['createdAt'] ?? '') ?? DateTime.now(),
+      estimatedDelivery: null, // Será calculado quando necessário
+      trackingCode: data['trackingCode'],
     );
   }
   

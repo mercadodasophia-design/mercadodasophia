@@ -60,6 +60,66 @@ class FirebaseProductService {
     }
   }
 
+  // Obter produtos por categoria
+  Future<List<Map<String, dynamic>>> getProductsByCategory(String category) async {
+    try {
+      final querySnapshot = await _products
+          .where('categoria', isEqualTo: category)
+          .where('isActive', isEqualTo: true)
+          .get();
+      
+      return querySnapshot.docs.map((doc) => {
+        ...doc.data() as Map<String, dynamic>,
+        'documentId': doc.id,
+      }).toList();
+    } catch (e) {
+      print('Erro ao obter produtos por categoria: $e');
+      return [];
+    }
+  }
+
+  // Obter produtos da seção SexyShop
+  Future<List<Map<String, dynamic>>> getSexyShopProducts() async {
+    try {
+      final querySnapshot = await _products
+          .where('secao', isEqualTo: 'SexyShop')
+          .where('isActive', isEqualTo: true)
+          .get();
+      
+      return querySnapshot.docs.map((doc) => {
+        ...doc.data() as Map<String, dynamic>,
+        'documentId': doc.id,
+      }).toList();
+    } catch (e) {
+      // Se a coleção não existe ou não há dados, retorna lista vazia
+      print('Nenhum produto SexyShop encontrado: $e');
+      return [];
+    }
+  }
+
+  // Obter produtos por seção
+  Future<List<Map<String, dynamic>>> getProductsBySection(String section) async {
+    try {
+      final querySnapshot = await _products
+          .where('secao', isEqualTo: section)
+          .where('isActive', isEqualTo: true)
+          .get();
+      
+      return querySnapshot.docs.map((doc) => {
+        ...doc.data() as Map<String, dynamic>,
+        'documentId': doc.id,
+      }).toList();
+    } catch (e) {
+      print('Erro ao obter produtos da seção $section: $e');
+      return [];
+    }
+  }
+
+  // Obter produtos da loja (seção Loja)
+  Future<List<Map<String, dynamic>>> getLojaProducts() async {
+    return await getProductsBySection('Loja');
+  }
+
   // Criar produto
   Future<String> createProduct(Map<String, dynamic> productData) async {
     try {

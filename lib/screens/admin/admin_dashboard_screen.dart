@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'dart:convert';
 import '../../theme/app_theme.dart';
 import '../../services/aliexpress_auth_service.dart';
+import '../../services/auth_service.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -184,11 +185,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   },
                 ),
                 _buildDrawerItem(
+                  icon: Icons.rss_feed,
+                  title: 'Feed',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/admin/feeds');
+                  },
+                ),
+                _buildDrawerItem(
                   icon: Icons.download,
                   title: 'Produtos Importados',
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/admin/imported-products');
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.add_box,
+                  title: 'Adicionar Produto',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/admin/add-product');
                   },
                 ),
                 _buildDrawerItem(
@@ -222,6 +239,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     Navigator.pop(context);
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/admin/categories');
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.image,
+                  title: 'Banner Loja',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/admin/banners-loja');
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.favorite,
+                  title: 'Banner SexyShop',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/admin/banners-sexyshop');
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.add_photo_alternate,
+                  title: 'Adicionar Banner',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/admin/add-banner');
                   },
                 ),
                 _buildDrawerItem(
@@ -567,10 +608,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               () => Navigator.pushNamed(context, '/admin/categories'),
             ),
             _buildActionCard(
-              '🧪 Teste Feed',
+              'Feed (AliExpress)',
               Icons.rss_feed,
               Colors.purple,
-              () => Navigator.pushNamed(context, '/admin/feed-test'),
+              () => Navigator.pushNamed(context, '/admin/feeds'),
             ),
           ],
         ),
@@ -694,7 +735,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('🔐 Sair do Sistema'),
-          content: const Text('Tem certeza que deseja sair? Você será redirecionado para a tela de login AliExpress.'),
+          content: const Text('Tem certeza que deseja sair? Você será redirecionado para a tela de login.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -717,9 +758,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  void _logout() {
-    final authService = Provider.of<AliExpressAuthService>(context, listen: false);
-    authService.reset();
-    Navigator.of(context).pushReplacementNamed('/admin_aliexpress_login');
+  void _logout() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    await authService.signOut();
+    Navigator.of(context).pushReplacementNamed('/admin_login');
   }
 } 

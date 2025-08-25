@@ -1,12 +1,18 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+
 import '../services/auth_service.dart';
 import '../services/payment_service.dart';
 import '../providers/cart_provider.dart';
 import '../providers/address_provider.dart';
 import '../theme/app_theme.dart';
-import 'client_login_screen.dart';
+import '../config/api_config.dart';
+
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -18,7 +24,7 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _isLoading = true;
   bool _isLoggedIn = false;
-  String _selectedPaymentMethod = 'pix';
+  String _selectedPaymentMethod = 'mercadopago';
   bool _isProcessingOrder = false;
 
   @override
@@ -39,12 +45,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // Se não estiver logado, mostrar tela de login
     if (!isLoggedIn) {
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ClientLoginScreen(),
-          ),
-        );
+        context.go('/login');
       }
     }
   }
@@ -254,7 +255,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     width: double.infinity,
                     child: OutlinedButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/login');
+                         context.go('/login');
                       },
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -337,6 +338,46 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Widget _buildPaymentMethodOption() {
     switch (_selectedPaymentMethod) {
+      case 'mercadopago':
+        return Row(
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: const Color(0xFF009EE3),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Center(
+                child: Text(
+                  'MP',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Checkout Mercado Pago',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF009EE3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Recomendado',
+                style: TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+          ],
+        );
       case 'pix':
         return Row(
           children: [
@@ -345,18 +386,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             const Text(
               'Pix',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.green,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Recomendado',
-                style: TextStyle(color: Colors.white, fontSize: 12),
-              ),
             ),
           ],
         );
@@ -395,6 +424,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            _buildPaymentOption('mercadopago', 'Checkout Mercado Pago', Icons.payment, const Color(0xFF009EE3), 'Múltiplas formas de pagamento'),
             _buildPaymentOption('pix', 'Pix', Icons.pix, Colors.green, 'Pagamento instantâneo'),
             _buildPaymentOption('credit_card', 'Cartão de Crédito', Icons.credit_card, Colors.blue, 'Parcelado em até 12x'),
             _buildPaymentOption('boleto', 'Boleto Bancário', Icons.receipt, Colors.orange, 'Vencimento em 3 dias'),
@@ -418,7 +448,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         setState(() {
           _selectedPaymentMethod = newValue!;
         });
-        Navigator.pop(context);
+        context.pop();
       },
       title: Row(
         children: [
@@ -442,7 +472,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       
       if (user == null) {
         // Redirecionar para login
-        Navigator.pushNamed(context, '/login');
+        context.go('/login');
         return;
       }
 
@@ -469,6 +499,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'variation': item.variation?.toJson(),
       }).toList();
 
+      // Salvar pedido no Firebase com status "aguardando pagamento"
+      await _saveOrderToFirebase(
+        orderId: orderId,
+        user: user,
+        items: items,
+        total: total,
+        shipping: shipping,
+        addressProvider: addressProvider,
+        paymentMethod: _selectedPaymentMethod,
+      );
+
       // Criar preferência de pagamento no MercadoPago
       final preference = await PaymentService.createPaymentPreference(
         orderId: orderId,
@@ -488,15 +529,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         );
 
         if (success) {
+          // Limpar carrinho após redirecionamento
+          cartProvider.clearCart();
+          
           // Mostrar mensagem de sucesso
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: const Text('Redirecionando para o MercadoPago...'),
+                content: const Text('Pedido criado! Redirecionando para o MercadoPago...'),
                 backgroundColor: AppTheme.successColor,
                 duration: const Duration(seconds: 3),
+                action: SnackBarAction(
+                  label: 'Ver Pedidos',
+                  onPressed: () => context.go('/meus-pedidos'),
+                ),
               ),
             );
+            
+            // Redirecionar para página de pedidos após um delay
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted) {
+                context.go('/meus-pedidos');
+              }
+            });
           }
         } else {
           throw Exception('Não foi possível abrir o checkout do MercadoPago');
@@ -521,6 +576,56 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           _isProcessingOrder = false;
         });
       }
+    }
+  }
+
+
+
+  // Salvar pedido no servidor Python que salva no Firebase
+  Future<void> _saveOrderToFirebase({
+    required String orderId,
+    required dynamic user,
+    required List<Map<String, dynamic>> items,
+    required double total,
+    required double shipping,
+    required AddressProvider addressProvider,
+    required String paymentMethod,
+  }) async {
+    try {
+      final orderData = {
+        'orderId': orderId,
+        'userId': user.uid,
+        'userEmail': user.email,
+        'userName': user.displayName,
+        'items': items,
+        'total': total,
+        'shipping': shipping,
+        'shippingAddress': addressProvider.toMap(),
+        'paymentMethod': paymentMethod,
+      };
+
+      // Fazer requisição para o servidor Python
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/orders/save'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(orderData),
+      );
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        if (result['success']) {
+          print('✅ Pedido salvo via servidor Python: $orderId - Status: aguardando_pagamento');
+        } else {
+          throw Exception('Erro do servidor: ${result['message']}');
+        }
+      } else {
+        throw Exception('Erro HTTP: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Erro ao salvar pedido via servidor: $e');
+      throw Exception('Erro ao salvar pedido: $e');
     }
   }
 
@@ -698,7 +803,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => context.pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
@@ -709,7 +814,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   // Recalcular frete
                   final cartProvider = Provider.of<CartProvider>(context, listen: false);
                   await cartProvider.calculateShipping(cepController.text);
-                  Navigator.pop(context);
+                  context.pop();
                 }
               }
             },

@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/product.dart';
+import 'package:go_router/go_router.dart';
+import '../models/product_model.dart';
 import '../services/auth_service.dart';
-import '../models/product_variation.dart';
+
 import '../providers/cart_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/product_variations_widget.dart';
@@ -110,10 +111,28 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       elevation: 0,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
+        onPressed: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            // Verificar se o produto é do SexyShop baseado na categoria
+            final productCategory = widget.product.categoria?.toLowerCase() ?? '';
+            final isSexyShopProduct = productCategory.contains('sexyshop') || 
+                                     productCategory.contains('adulto') ||
+                                     productCategory.contains('erotico') ||
+                                     productCategory.contains('lingerie') ||
+                                     productCategory.contains('fantasia');
+            
+            if (isSexyShopProduct) {
+              context.go('/sexyshop');
+            } else {
+              context.go('/produtos');
+            }
+          }
+        },
       ),
       title: Text(
-        widget.product.name,
+        widget.product.titulo,
         style: const TextStyle(
           color: Colors.white,
           fontSize: 18,
@@ -145,7 +164,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         ),
                  CartBadge(
            onTap: () {
-             Navigator.pushNamed(context, '/cart');
+             context.go('/carrinho');
            },
            size: 24,
            backgroundColor: Colors.red,
@@ -426,7 +445,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       children: [
         // Nome do produto
         Text(
-          widget.product.name,
+          widget.product.titulo,
           style: const TextStyle(
             fontSize: kIsWeb ? 28 : 24,
             fontWeight: FontWeight.bold,
@@ -443,7 +462,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
-            widget.product.category,
+            widget.product.categoria,
             style: TextStyle(
               fontSize: 14,
               color: AppTheme.primaryColor,
@@ -453,17 +472,74 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         ),
         const SizedBox(height: 16),
         
-                 // Preço
-         Text(
-           widget.product.hasVariations && _selectedVariation != null
-               ? 'R\$ ${_selectedVariation!.price.toStringAsFixed(2)}'
-               : 'R\$ ${widget.product.price.toStringAsFixed(2)}',
-           style: TextStyle(
-             fontSize: kIsWeb ? 32 : 28,
-             fontWeight: FontWeight.bold,
-             color: AppTheme.primaryColor,
-           ),
-         ),
+                 // Preço com desconto
+        if (widget.product.hasVariations && _selectedVariation != null)
+          // Preço da variação selecionada
+          Text(
+            'R\$ ${_selectedVariation!.price.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: kIsWeb ? 32 : 28,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryColor,
+            ),
+          )
+        else if (widget.product.descontoPercentual != null && widget.product.descontoPercentual! > 0)
+          // Preço com desconto
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Preço original riscado
+              Text(
+                'R\$ ${widget.product.preco.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: kIsWeb ? 20 : 18,
+                  color: Colors.grey[600],
+                  decoration: TextDecoration.lineThrough,
+                  decorationColor: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Preço com desconto
+              Row(
+                children: [
+                  Text(
+                    'R\$ ${(widget.product.preco * (1 - (widget.product.descontoPercentual! / 100))).toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: kIsWeb ? 32 : 28,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF6B9D),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '-${widget.product.descontoPercentual!.toStringAsFixed(0)}%',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          )
+        else
+          // Preço normal sem desconto
+          Text(
+            'R\$ ${widget.product.preco.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: kIsWeb ? 32 : 28,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryColor,
+            ),
+          ),
          // Mostrar faixa de preços se houver variações
          if (widget.product.hasVariations && widget.product.minPrice != widget.product.maxPrice) ...[
            const SizedBox(height: 4),
@@ -492,7 +568,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                  Icon(Icons.local_shipping, color: Colors.green[600], size: 16),
                  const SizedBox(width: 8),
                  Text(
-                   'Total com frete: R\$ ${((widget.product.hasVariations && _selectedVariation != null ? _selectedVariation!.price : widget.product.price) * _quantity + _shippingCost).toStringAsFixed(2)}',
+                   'Total com frete: R\$ ${((widget.product.hasVariations && _selectedVariation != null ? _selectedVariation!.price : (widget.product.descontoPercentual != null && widget.product.descontoPercentual! > 0 ? widget.product.preco * (1 - (widget.product.descontoPercentual! / 100)) : widget.product.preco)) * _quantity + _shippingCost).toStringAsFixed(2)}',
                    style: TextStyle(
                      fontSize: 14,
                      fontWeight: FontWeight.w600,
@@ -611,8 +687,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            widget.product.description.isNotEmpty 
-                ? widget.product.description 
+            widget.product.descricao.isNotEmpty 
+                ? widget.product.descricao 
                 : 'Este produto oferece qualidade excepcional e design moderno. Perfeito para quem busca estilo e funcionalidade em um só lugar. Desenvolvido com materiais de alta qualidade e atenção aos detalhes, este produto foi criado para proporcionar a melhor experiência possível aos nossos clientes.',
             style: TextStyle(
               fontSize: 16,
@@ -622,7 +698,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           ),
           const SizedBox(height: 16),
           // Características adicionais
-          if (widget.product.description.isNotEmpty) ...[
+          if (widget.product.descricao.isNotEmpty) ...[
             const Text(
               'Características Principais:',
               style: TextStyle(
@@ -729,17 +805,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             ),
           ],
         ),
-        if (widget.product.hasVariations && _selectedVariation != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Estoque disponível: ${_selectedVariation!.stock} unidades',
-            style: TextStyle(
-              fontSize: 14,
-              color: _selectedVariation!.hasStock ? Colors.green[600] : Colors.red[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+
         if (_quantity > maxQuantity) ...[
           const SizedBox(height: 4),
           Text(
@@ -813,7 +879,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           height: 50,
           child: ElevatedButton(
             onPressed: () {
-              Navigator.pushNamed(context, '/cart');
+              context.go('/carrinho');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
@@ -859,35 +925,41 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           ),
         ),
         const SizedBox(height: 16),
-        _buildInfoRow('Categoria', widget.product.category),
+        _buildInfoRow('Categoria', widget.product.categoria),
         _buildInfoRow('Disponibilidade', 'Em estoque'),
-        _buildInfoRow('Entrega', '2-5 dias úteis'),
-        _buildInfoRow('Garantia', '30 dias'),
+        _buildInfoRow('Entrega', '12-28 dias úteis'),
+        _buildInfoRow('Devolução', 'Grátis em até 30 dias'),
+        _buildInfoRow('Segurança', 'Privacidade garantida'),
       ],
     );
   }
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
+            width: 120,
             child: Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                fontWeight: FontWeight.w600,
+                color: Colors.green,
               ),
             ),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.end,
             ),
           ),
         ],
@@ -897,28 +969,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   void _addToCart() async {
     final cartProvider = context.read<CartProvider>();
-    
-    // Verificar se o usuário está logado
-    final authService = context.read<AuthService>();
-    if (authService.currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Por favor, faça login para adicionar produtos ao carrinho.',
-          ),
-          backgroundColor: Colors.orange,
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'Entrar',
-            textColor: Colors.white,
-            onPressed: () {
-              Navigator.pushNamed(context, '/login');
-            },
-          ),
-        ),
-      );
-      return;
-    }
     
     // Verificar se há uma variação selecionada quando o produto tem variações
     if (widget.product.hasVariations && _selectedVariation == null) {
@@ -990,7 +1040,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
          if (success) {
        // Calcular preço e informações
        final variation = _selectedVariation;
-       final price = variation?.price ?? widget.product.price;
+       final price = variation?.price ?? (widget.product.descontoPercentual != null && widget.product.descontoPercentual! > 0 ? widget.product.preco * (1 - (widget.product.descontoPercentual! / 100)) : widget.product.preco);
        final totalPrice = price * _quantity;
        final totalWithShipping = totalPrice + _shippingCost;
        
@@ -1015,14 +1065,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
        ScaffoldMessenger.of(context).showSnackBar(
          SnackBar(
            content: Text(
-             '✅ Adicionado ao carrinho: ${widget.product.name}$variationInfo x$_quantity - R\$ ${totalPrice.toStringAsFixed(2)}$shippingInfo$skuInfo',
+             '✅ Adicionado ao carrinho: ${widget.product.titulo}$variationInfo x$_quantity - R\$ ${totalPrice.toStringAsFixed(2)}$shippingInfo$skuInfo',
            ),
            backgroundColor: Colors.green,
            action: SnackBarAction(
              label: 'Ver Carrinho',
              textColor: Colors.white,
              onPressed: () {
-               Navigator.pushNamed(context, '/cart');
+               context.go('/carrinho');
              },
            ),
            duration: const Duration(seconds: 4),

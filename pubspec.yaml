@@ -45,7 +45,7 @@ dependencies:
   provider: ^6.1.1
   
   # Image loading and caching
-  cached_network_image: ^3.3.0
+  cached_network_image: ^3.4.1
   
   # Local storage
   shared_preferences: ^2.2.2
@@ -64,7 +64,7 @@ dependencies:
   flutter_flavorizr: ^2.2.3
   
   # URL launcher for opening external links
-  url_launcher: ^6.2.4
+  url_launcher: ^6.3.2
   carousel_slider: ^5.1.1
   
   # HTML rendering for rich text content
@@ -91,6 +91,7 @@ dependencies:
   
   # Path utilities
   path: ^1.8.3
+  go_router: ^16.2.0
 
 dev_dependencies:
   flutter_test:

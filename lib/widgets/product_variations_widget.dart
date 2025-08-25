@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/product.dart';
-import '../models/product_variation.dart';
+import '../models/product_model.dart';
+
 import '../theme/app_theme.dart';
 
 class ProductVariationsWidget extends StatefulWidget {
@@ -482,25 +482,19 @@ class _ProductVariationsWidgetState extends State<ProductVariationsWidget> {
           return colorMatch && sizeMatch;
         },
         orElse: () => ProductVariation(
-          id: '',
-          productId: widget.product.id,
+          skuId: 'default',
           color: selectedColor,
           size: selectedSize,
-          price: widget.product.price,
-          stock: 0,
-          sku: '',
+          preco: widget.product.preco,
         ),
       );
     } catch (e) {
       // Se não encontrar variação, criar uma vazia
       variation = ProductVariation(
-        id: '',
-        productId: widget.product.id,
+        skuId: 'default',
         color: selectedColor,
         size: selectedSize,
-        price: widget.product.price,
-        stock: 0,
-        sku: '',
+        preco: widget.product.preco,
       );
     }
 

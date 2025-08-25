@@ -1,75 +1,66 @@
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-
-class Category {
-  final String id;
-  final String name;
-  final String? parentId;
-  final String? level;
-
-  Category({
-    required this.id,
-    required this.name,
-    this.parentId,
-    this.level,
-  });
-
-  factory Category.fromJson(Map<String, dynamic> json) {
-    return Category(
-      id: json['category_id'] ?? json['id'] ?? '',
-      name: json['category_name'] ?? json['name'] ?? '',
-      parentId: json['parent_category_id'],
-      level: json['level'],
-    );
-  }
-}
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CategoryService {
-  static const String baseUrl = 'https://service-api-aliexpress.mercadodasophia.com.br';
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Categorias padrão caso a API não funcione
-  static final List<Category> defaultCategories = [
-    Category(id: '509', name: 'Smartphones'),
-    Category(id: '14', name: 'Computadores'),
-    Category(id: '15', name: 'Roupas'),
-    Category(id: '16', name: 'Casa & Jardim'),
-    Category(id: '17', name: 'Automóveis'),
-    Category(id: '18', name: 'Esportes'),
-    Category(id: '19', name: 'Brinquedos'),
-    Category(id: '20', name: 'Beleza'),
-    Category(id: '21', name: 'Livros'),
-    Category(id: '22', name: 'Ferramentas'),
-  ];
+  // Coleção de categorias
+  CollectionReference get _categories => _firestore.collection('categorias');
 
-  static Future<List<Category>> getCategories() async {
-    // Usar apenas categorias padrão por enquanto
-    return defaultCategories;
+  // Obter todas as categorias
+  Future<List<String>> getCategories() async {
+    try {
+      final querySnapshot = await _categories.get();
+      return querySnapshot.docs.map((doc) => doc.data() as String).toList();
+    } catch (e) {
+      print('Erro ao obter categorias: $e');
+      return [];
+    }
   }
 
-  // Buscar produtos por categoria usando busca por texto
-  static Future<List<dynamic>> getProductsByCategory(String categoryId, String categoryName) async {
+  // Obter categorias por seção (ex: SexyShop)
+  Future<List<String>> getCategoriesBySection(String section) async {
     try {
-      // Usar a busca por texto com o nome da categoria como termo
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/aliexpress/products?q=${Uri.encodeComponent(categoryName)}'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        
-        if (data['success'] == true && data['data'] != null) {
-          final productsData = data['data']['aliexpress_ds_text_search_response']['data']['products']['selection_search_product'];
-          return productsData;
-        }
-      }
+      final querySnapshot = await _categories
+          .where('secao', isEqualTo: section)
+          .get()
+          .timeout(const Duration(seconds: 10));
       
-      return [];
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return data['nome'] as String;
+      }).toList();
     } catch (e) {
-      print('❌ Erro ao buscar produtos da categoria: $e');
+      // Se a coleção não existe ou não há dados, retorna lista vazia
+      print('Nenhuma categoria encontrada para a seção $section: $e');
       return [];
+    }
+  }
+
+  // Obter categorias da seção SexyShop
+  Future<List<String>> getSexyShopCategories() async {
+    return await getCategoriesBySection('SexyShop');
+  }
+
+  // Adicionar categoria
+  Future<String> addCategory(String categoryName, String section) async {
+    try {
+      final docRef = await _categories.add({
+        'nome': categoryName,
+        'secao': section,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return docRef.id;
+    } catch (e) {
+      throw Exception('Erro ao adicionar categoria: $e');
+    }
+  }
+
+  // Deletar categoria
+  Future<void> deleteCategory(String id) async {
+    try {
+      await _categories.doc(id).delete();
+    } catch (e) {
+      throw Exception('Erro ao deletar categoria: $e');
     }
   }
 } 

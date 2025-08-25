@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/product.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../models/product_model.dart';
 import '../theme/app_theme.dart';
+
 
 /// ProductCard para Web - Largura fixa de 230px
 /// 
@@ -44,31 +46,30 @@ class ProductCardWeb extends StatelessWidget {
                 child: Stack(
                   children: [
                     // Imagem do produto ou placeholder
-                    product.imageUrl.isNotEmpty
+                    product.images.isNotEmpty
                         ? ClipRRect(
                             borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                            child: Image.network(
-                              product.imageUrl,
+                            child: CachedNetworkImage(
+                              imageUrl: product.images.first,
                               width: 230,
                               height: 160,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Center(
-                                  child: Icon(
-                                    Icons.shopping_bag,
-                                    size: 40,
-                                    color: Colors.white,
-                                  ),
-                                );
-                              },
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return const Center(
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                  ),
-                                );
-                              },
+                              memCacheWidth: 460, // 2x para retina displays
+                              memCacheHeight: 320,
+                              maxWidthDiskCache: 460,
+                              maxHeightDiskCache: 320,
+                              placeholder: (context, url) => const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => const Center(
+                                child: Icon(
+                                  Icons.shopping_bag,
+                                  size: 40,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
                           )
                         : const Center(
@@ -107,25 +108,73 @@ class ProductCardWeb extends StatelessWidget {
                   children: [
                     // Nome do produto
                     Text(
-                      product.name,
+                      product.titulo,
                       style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    // Preço destacado
-                    Text(
-                      'R\$ ${product.price.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
+                    // Preço com desconto
+                    if (product.descontoPercentual != null && product.descontoPercentual! > 0)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Preço original riscado
+                          Text(
+                            'R\$ ${product.preco.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                              decoration: TextDecoration.lineThrough,
+                              decorationColor: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          // Preço com desconto
+                          Row(
+                            children: [
+                              Text(
+                                'R\$ ${(product.preco * (1 - (product.descontoPercentual! / 100))).toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF6B9D),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                                child: Text(
+                                  '-${product.descontoPercentual!.toStringAsFixed(0)}%',
+                                  style: const TextStyle(
+                                    fontSize: 8,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      )
+                    else
+                      // Preço normal sem desconto
+                      Text(
+                        'R\$ ${product.preco.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryColor,
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 4),
                     // Rating e vendas
                     Row(
@@ -137,45 +186,27 @@ class ProductCardWeb extends StatelessWidget {
                         ),
                         const SizedBox(width: 2),
                         Text(
-                          product.rating > 0 ? product.rating.toStringAsFixed(1) : 'N/A',
+                          0.0 > 0 ? 0.0.toStringAsFixed(1) : '',
                           style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey,
+                            fontSize: 20,
+                            color: Colors.green,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          product.reviewCount > 0 
-                              ? '${product.reviewCount} vendidos'
+                          0 > 0 
+                              ? '${0} vendidos'
                               : 'Novo',
                           style: const TextStyle(
                             fontSize: 10,
-                            color: Colors.grey,
+                            color: Colors.green,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    // Status de estoque
-                    if (product.isAvailable)
-                      Text(
-                        'Disponível',
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: Colors.green[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      )
-                    else
-                      Text(
-                        'Fora de estoque',
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: Colors.red[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+
+                     
                   ],
                 ),
               ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/feed.dart';
-import '../../models/product.dart';
+import '../../models/product_model.dart';
 import '../../services/aliexpress_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -446,24 +446,27 @@ class _AdminFeedTestScreenState extends State<AdminFeedTestScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.auto_awesome, color: Colors.orange, size: 28),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  '🚀 Feeds Completos (AliExpress)',
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.auto_awesome, color: Colors.orange, size: 28),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    '🚀 Feeds Completos (AliExpress)',
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                                const Spacer(),
-                                IconButton(
-                                  icon: const Icon(Icons.refresh),
-                                  onPressed: _loadCompleteFeeds,
-                                  tooltip: 'Recarregar feeds',
-                                ),
-                              ],
+                                  const SizedBox(width: 12),
+                                  IconButton(
+                                    icon: const Icon(Icons.refresh),
+                                    onPressed: _loadCompleteFeeds,
+                                    tooltip: 'Recarregar feeds',
+                                  ),
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 20),
                             _buildCompleteFeedsView(),

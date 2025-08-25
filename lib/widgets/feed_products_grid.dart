@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/product.dart';
+import '../models/product_model.dart';
 import '../widgets/product_card.dart';
 
 class FeedProductsGrid extends StatelessWidget {
@@ -32,11 +32,12 @@ class FeedProductsGrid extends StatelessWidget {
       },
       child: GridView.builder(
         padding: const EdgeInsets.all(16),
+        physics: const ClampingScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          childAspectRatio: 0.75,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
+          childAspectRatio: 0.8,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
         ),
         itemCount: products.length + (isLoading && hasMore ? 2 : 0),
         itemBuilder: (context, index) {
@@ -45,7 +46,17 @@ class FeedProductsGrid extends StatelessWidget {
           }
           
           final product = products[index];
-          return ProductCard(product: product);
+          // Verificação de segurança para evitar erros de renderização
+          if (product == null) {
+            return _buildLoadingCard();
+          }
+          
+          try {
+            return ProductCard(product: product);
+          } catch (e) {
+            print('Erro ao renderizar produto: $e');
+            return _buildLoadingCard();
+          }
         },
       ),
     );

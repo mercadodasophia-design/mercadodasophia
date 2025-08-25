@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:provider/provider.dart';
-import '../models/product.dart';
-import '../models/feed.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
+import '../models/product_model.dart';
+
 import '../services/product_service.dart';
 import '../services/auth_service.dart';
-import '../services/aliexpress_service.dart';
+import '../services/banner_service.dart';
+import '../models/banner_model.dart' as banner_model;
+
 import '../providers/location_provider.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_card_compact.dart';
 import '../widgets/product_card_v2.dart';
 import '../widgets/product_card_web.dart';
-import '../widgets/feed_selector_widget.dart';
-import '../widgets/feed_products_grid.dart';
+
 import '../widgets/cart_badge.dart';
+import '../widgets/friendly_router.dart';
 import '../theme/app_theme.dart';
-import '../utils/debug_helper.dart';
+
 
 import 'my_orders_screen.dart';
 import 'favorites_screen.dart';
@@ -29,7 +33,14 @@ import 'terms_of_use_screen.dart';
 import 'contact_screen.dart';
 
 class ProductsScreen extends StatefulWidget {
-  const ProductsScreen({super.key});
+  final String? initialCategory;
+  final String? initialSearch;
+  
+  const ProductsScreen({
+    super.key,
+    this.initialCategory,
+    this.initialSearch,
+  });
 
   @override
   State<ProductsScreen> createState() => _ProductsScreenState();
@@ -42,25 +53,30 @@ class _ProductsScreenState extends State<ProductsScreen> {
   bool isLoading = true;
   List<String> categories = [];
   
-  // Variáveis para feeds do AliExpress
-  List<Feed> feeds = [];
-  String selectedFeed = 'top_selling_products';
-  List<Product> feedProducts = [];
-  bool isLoadingFeeds = false;
-  bool isLoadingFeedProducts = false;
-  bool hasMoreFeedProducts = true;
-  int currentFeedPage = 1;
+  // Controle do banner promocional
+  int _currentBannerIndex = 0;
+  List<banner_model.Banner> _banners = [];
+  bool _isLoadingBanners = true;
   
-  // Serviço AliExpress
-  final AliExpressService _aliExpressService = AliExpressService();
+
 
   @override
   void initState() {
     super.initState();
+    
+    // Definir categoria inicial se fornecida
+    if (widget.initialCategory != null) {
+      selectedCategory = widget.initialCategory;
+    }
+    
+    // TODO: Implementar busca inicial
+    // if (widget.initialSearch != null) {
+    //   _searchQuery = widget.initialSearch;
+    // }
+    
     _loadProducts();
     _loadCategories();
-    _loadFeeds();
-    _loadFeedProducts();
+    _loadBanners();
     _initializeLocation();
     _loadSavedAddress();
   }
@@ -113,75 +129,35 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
-  // ===================== MÉTODOS PARA FEEDS ALIEXPRESS =====================
-
-  Future<void> _loadFeeds() async {
-    setState(() {
-      isLoadingFeeds = true;
-    });
-    
+  Future<void> _loadBanners() async {
     try {
-      final loadedFeeds = await _aliExpressService.getAvailableFeeds();
       setState(() {
-        feeds = loadedFeeds;
-        isLoadingFeeds = false;
+        _isLoadingBanners = true;
+      });
+
+      final bannerService = BannerService();
+      final banners = await bannerService.getLojaBanners();
+      
+      setState(() {
+        _banners = banners;
+        _isLoadingBanners = false;
       });
     } catch (e) {
-      print('Erro ao carregar feeds: $e');
+      print('Erro ao carregar banners: $e');
       setState(() {
-        isLoadingFeeds = false;
+        _banners = [];
+        _isLoadingBanners = false;
       });
     }
   }
 
-  Future<void> _loadFeedProducts({bool refresh = false}) async {
-    if (isLoadingFeedProducts) return;
 
-    setState(() {
-      isLoadingFeedProducts = true;
-    });
-
-    try {
-      if (refresh) {
-        currentFeedPage = 1;
-        feedProducts.clear();
-      }
-
-      final feedProductsData = await _aliExpressService.getFeedProducts(
-        selectedFeed,
-        page: currentFeedPage,
-      );
-
-      setState(() {
-        if (refresh) {
-          feedProducts = feedProductsData.products;
-        } else {
-          feedProducts.addAll(feedProductsData.products);
-        }
-        hasMoreFeedProducts = feedProductsData.pagination.hasNext;
-        currentFeedPage++;
-        isLoadingFeedProducts = false;
-      });
-    } catch (e) {
-      print('Erro ao carregar produtos do feed: $e');
-      setState(() {
-        isLoadingFeedProducts = false;
-      });
-    }
-  }
-
-  void _onFeedSelected(String feedName) {
-    setState(() {
-      selectedFeed = feedName;
-    });
-    _loadFeedProducts(refresh: true);
-  }
 
   void _filterProducts() {
     if (selectedCategory == null || selectedCategory == 'Todos') {
       filteredProducts = products;
     } else {
-      filteredProducts = products.where((product) => product.category == selectedCategory).toList();
+      filteredProducts = products.where((product) => product.categoria == selectedCategory).toList();
     }
   }
 
@@ -219,7 +195,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         icon: const Icon(Icons.bug_report, color: Colors.white),
                         onPressed: () async {
                           final locationProvider = Provider.of<LocationProvider>(context, listen: false);
-                          await DebugHelper.runAllTests(locationProvider);
+                          // DebugHelper removido
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Testes de debug executados! Verifique o console.'),
@@ -233,20 +209,89 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       ),
                     const SizedBox(width: 8),
                     
+                                                                    // Logo em imagem
                                                                     Image.asset(
-                       'assets/images/system/logo/name-logo-web.png',
-                       width: 600,
-                       height: 800,
-                       fit: BoxFit.fill,
-                     ),
+                                                                      'assets/images/system/logo/name-logo-web.png',
+                                                                      width: 200,
+                                                                      height: 60,
+                                                                      fit: BoxFit.contain,
+                                                                    ),
                     
                     // Espaçamento flexível para empurrar os itens para a direita
                     const Spacer(),
+                    
+                    // SexyShop (primeiro item no lado direito)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF6B9D), Color(0xFFFF8E53)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.pink.withOpacity(0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () {
+                            context.go('/sexyshop');
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.favorite,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'SexyShop',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text(
+                                    '18+',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    
                     // Ícone Minha Conta
                     IconButton(
                       icon: const Icon(Icons.person, color: Colors.white),
                       onPressed: () {
-                        Navigator.pushNamed(context, '/my_account');
+                        context.go('/minha-conta');
                       },
                       tooltip: 'Minha Conta',
                     ),
@@ -254,7 +299,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     // Atendimento
                     TextButton.icon(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/contact');
+                        context.go('/contato');
                       },
                       icon: const Icon(Icons.headset_mic, color: Colors.white, size: 20),
                       label: const Text(
@@ -273,7 +318,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     // Carrinho
                                 CartBadge(
               onTap: () {
-                Navigator.pushNamed(context, '/cart');
+                context.go('/carrinho');
               },
               size: 24,
               backgroundColor: Colors.red,
@@ -284,110 +329,73 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ),
             ),
           
-          // Layout condicional para seção de categorias
-          kIsWeb 
-            ? _buildWebCategoriesSection()
-            : _buildMobileCategoriesSection(),
-          
-          // Conteúdo principal com rodapé fixo no final
+          // Conteúdo principal com rodapé rolável
           Expanded(
-            child: Column(
-              children: [
-                // Área de conteúdo rolável
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        // Seção de Feeds do AliExpress
-                        if (feeds.isNotEmpty)
-                          FeedSelectorWidget(
-                            feeds: feeds,
-                            selectedFeed: selectedFeed,
-                            onFeedSelected: _onFeedSelected,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Banner promocional
+                  _buildPromoBanner(),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Layout condicional para seção de categorias
+                  kIsWeb 
+                    ? _buildWebCategoriesSection()
+                    : _buildMobileCategoriesSection(),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Grid de produtos locais
+                  if (isLoading)
+                    kIsWeb 
+                      ? _buildWebLoadingSection()
+                      : const Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Center(
+                            child: CircularProgressIndicator(),
                           ),
-                        
-                        // Grid de produtos dos feeds
-                        if (feeds.isNotEmpty)
-                          FeedProductsGrid(
-                            products: feedProducts,
-                            isLoading: isLoadingFeedProducts,
-                            hasMore: hasMoreFeedProducts,
-                            onLoadMore: () => _loadFeedProducts(),
-                          ),
-                        
-                        // Separador entre feeds e produtos locais
-                        if (feeds.isNotEmpty && filteredProducts.isNotEmpty)
-                          Container(
-                            margin: const EdgeInsets.symmetric(vertical: 24),
-                            child: Row(
+                        )
+                  else if (filteredProducts.isEmpty)
+                    kIsWeb 
+                      ? _buildWebEmptySection()
+                      : const Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Center(
+                            child: Column(
                               children: [
-                                Expanded(child: Divider(color: Colors.grey[300])),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  child: Text(
-                                    'Produtos da Loja',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.grey[700],
-                                    ),
+                                Icon(
+                                  Icons.inventory_2_outlined,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Nenhum produto encontrado',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey,
                                   ),
                                 ),
-                                Expanded(child: Divider(color: Colors.grey[300])),
                               ],
                             ),
                           ),
-                        
-                        // Grid de produtos locais
-                        if (isLoading)
-                          kIsWeb 
-                            ? _buildWebLoadingSection()
-                            : const Padding(
-                                padding: EdgeInsets.all(32),
-                                child: Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              )
-                        else if (filteredProducts.isEmpty)
-                          kIsWeb 
-                            ? _buildWebEmptySection()
-                            : const Padding(
-                                padding: EdgeInsets.all(32),
-                                child: Center(
-                                  child: Column(
-                                    children: [
-                                      Icon(
-                                        Icons.inventory_2_outlined,
-                                        size: 64,
-                                        color: Colors.grey,
-                                      ),
-                                      SizedBox(height: 16),
-                                      Text(
-                                        'Nenhum produto encontrado',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              )
-                        else
-                          // Layout condicional por plataforma
-                          kIsWeb 
-                            ? _buildWebLayout(filteredProducts)
-                            : _buildMobileLayout(filteredProducts),
-                      ],
-                    ),
-                  ),
-                ),
-                
-                // Rodapé fixo no final
-                kIsWeb 
-                  ? _buildWebFooter()
-                  : _buildMobileFooter(),
-              ],
+                        )
+                  else
+                    // Layout condicional por plataforma
+                    kIsWeb 
+                      ? _buildWebLayout(filteredProducts)
+                      : _buildMobileLayout(filteredProducts),
+                  
+                  // Espaçamento antes do rodapé
+                  const SizedBox(height: 60),
+                  
+                  // Rodapé rolável
+                  kIsWeb 
+                    ? _buildWebFooter()
+                    : _buildMobileFooter(),
+                ],
+              ),
             ),
           ),
         ],
@@ -631,6 +639,45 @@ class _ProductsScreenState extends State<ProductsScreen> {
      );
    }
 
+  // Mapear categorias para ícones
+  IconData _getCategoryIcon(String category) {
+    final categoryLower = category.toLowerCase();
+    
+    if (categoryLower.contains('eletrônic') || categoryLower.contains('smartphone') || categoryLower.contains('computador')) {
+      return Icons.devices;
+    } else if (categoryLower.contains('roupa') || categoryLower.contains('vestuário')) {
+      return Icons.checkroom;
+    } else if (categoryLower.contains('casa') || categoryLower.contains('jardim') || categoryLower.contains('cozinha')) {
+      return Icons.home;
+    } else if (categoryLower.contains('automóvel') || categoryLower.contains('carro')) {
+      return Icons.directions_car;
+    } else if (categoryLower.contains('esporte')) {
+      return Icons.sports_soccer;
+    } else if (categoryLower.contains('brinquedo')) {
+      return Icons.toys;
+    } else if (categoryLower.contains('beleza')) {
+      return Icons.face;
+    } else if (categoryLower.contains('livro')) {
+      return Icons.book;
+    } else if (categoryLower.contains('ferramenta')) {
+      return Icons.build;
+    } else if (categoryLower.contains('garrafa') || categoryLower.contains('bebida')) {
+      return Icons.local_drink;
+    } else if (categoryLower.contains('comida') || categoryLower.contains('alimento')) {
+      return Icons.restaurant;
+    } else if (categoryLower.contains('saúde') || categoryLower.contains('medicamento')) {
+      return Icons.medical_services;
+    } else if (categoryLower.contains('jogo') || categoryLower.contains('game')) {
+      return Icons.games;
+    } else if (categoryLower.contains('música') || categoryLower.contains('instrumento')) {
+      return Icons.music_note;
+    } else if (categoryLower.contains('arte') || categoryLower.contains('decoração')) {
+      return Icons.palette;
+    } else {
+      return Icons.category; // Ícone padrão
+    }
+  }
+
     // Rodapé específico para Web - 80% de largura com design moderno
     Widget _buildWebFooter() {
       return Container(
@@ -662,13 +709,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         alignment: WrapAlignment.spaceEvenly,
                         spacing: 12,
                         runSpacing: 12,
-                        children: [
-                          _buildFooterCategory('Garrafeira'),
-                          _buildFooterCategory('Compotas e Mel'),
-                          _buildFooterCategory('Doces'),
-                          _buildFooterCategory('Chás e Refrescos'),
-                          _buildFooterCategory('Queijos e Pão'),
-                        ],
+                        children: categories
+                            .where((category) => category != 'Todos') // Excluir "Todos"
+                            .take(8) // Limitar a 8 categorias para não sobrecarregar
+                            .map((category) => _buildFooterCategory(category))
+                            .toList(),
                       ),
                     ],
                   ),
@@ -716,7 +761,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Text(
-                          'Rua das Flores, 123 - Centro • São Paulo/SP',
+                          'Zona Central de São Paulo • República, São Paulo - SP, 01037-010',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.black87,
@@ -725,12 +770,25 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Column(
                         children: [
-                          _buildFooterContact(Icons.phone, '(11) 99999-9999'),
-                          const SizedBox(width: 24),
-                          _buildFooterContact(Icons.email, 'contato@mercadodasophia.com'),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildFooterContact(Icons.phone, '(85) 99764-0050'),
+                              const SizedBox(width: 24),
+                              _buildFooterContact(Icons.email, 'contato@mercadodasophia.com'),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildFooterContact(Icons.phone_android, '(85) 99764-0050'),
+                              const SizedBox(width: 24),
+                              _buildFooterContact(Icons.phone_android, '(85) 99111-2002'),
+                            ],
+                          ),
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -784,13 +842,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                    alignment: WrapAlignment.spaceEvenly,
                    spacing: 16,
                    runSpacing: 16,
-                   children: [
-                     _buildFooterCategory('Garrafeira'),
-                     _buildFooterCategory('Compotas e Mel'),
-                     _buildFooterCategory('Doces'),
-                     _buildFooterCategory('Chás e Refrescos'),
-                     _buildFooterCategory('Queijos e Pão'),
-                   ],
+                   children: categories
+                       .where((category) => category != 'Todos') // Excluir "Todos"
+                       .take(6) // Limitar a 6 categorias para mobile
+                       .map((category) => _buildFooterCategory(category))
+                       .toList(),
                  ),
                ],
              ),
@@ -812,26 +868,39 @@ class _ProductsScreenState extends State<ProductsScreen> {
                  ),
                  const SizedBox(height: 8),
                  const Text(
-                   'Rua das Flores, 123 - Centro',
+                   'Zona Central de São Paulo',
                    style: TextStyle(
                      fontSize: 14,
                      color: Colors.white70,
                    ),
                  ),
                  const Text(
-                   'São Paulo/SP - CEP: 01234-567',
+                   'República, São Paulo - SP, 01037-010',
                    style: TextStyle(
                      fontSize: 14,
                      color: Colors.white70,
                    ),
                  ),
                  const SizedBox(height: 16),
-                 Wrap(
-                   alignment: WrapAlignment.center,
-                   spacing: 16,
+                 Column(
                    children: [
-                     _buildFooterContact(Icons.phone, '(11) 99999-9999'),
-                     _buildFooterContact(Icons.email, 'contato@mercadodasophia.com'),
+                     Row(
+                       mainAxisAlignment: MainAxisAlignment.center,
+                       children: [
+                         _buildFooterContact(Icons.phone, '(85) 99764-0050'),
+                         const SizedBox(width: 16),
+                         _buildFooterContact(Icons.email, 'contato@mercadodasophia.com'),
+                       ],
+                     ),
+                     const SizedBox(height: 8),
+                     Row(
+                       mainAxisAlignment: MainAxisAlignment.center,
+                       children: [
+                         _buildFooterContact(Icons.phone_android, '(85) 99764-0050'),
+                         const SizedBox(width: 16),
+                         _buildFooterContact(Icons.phone_android, '(85) 99111-2002'),
+                       ],
+                     ),
                    ],
                  ),
                  const SizedBox(height: 16),
@@ -953,28 +1022,28 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                         Icons.person,
                                         () {
                                           Navigator.pop(context);
-                                          Navigator.pushNamed(context, '/my_account');
+                                          context.go('/minha-conta');
                                         },
                                       ),
                                       _buildDrawerItem('Minhas Compras', Icons.shopping_bag, () {
                                         Navigator.pop(context);
-                                        Navigator.pushNamed(context, '/my_orders');
+                                        context.go('/meus-pedidos');
                                       }),
                                       _buildDrawerItem('Favoritos', Icons.favorite, () {
                                         Navigator.pop(context);
-                                        Navigator.pushNamed(context, '/favorites');
+                                        context.go('/favoritos');
                                       }),
                                       _buildDrawerItem('Ofertas', Icons.local_offer, () {
                                         Navigator.pop(context);
-                                        Navigator.pushNamed(context, '/offers');
+                                        context.go('/ofertas');
                                       }),
                                       _buildDrawerItem('Cupons', Icons.card_giftcard, () {
                                         Navigator.pop(context);
-                                        Navigator.pushNamed(context, '/coupons');
+                                        context.go('/cupons');
                                       }),
                                       _buildDrawerItem('Minha Conta', Icons.person, () {
                                         Navigator.pop(context);
-                                        Navigator.pushNamed(context, '/my_account');
+                                        context.go('/minha-conta');
                                       }),
                                     ],
                                   );
@@ -985,7 +1054,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     [
                                       _buildDrawerItem('Entrar / Cadastrar', Icons.login, () {
                                         Navigator.pop(context);
-                                        Navigator.pushNamed(context, '/login');
+                                        context.go('/login');
                                       }),
                                     ],
                                   );
@@ -1004,25 +1073,117 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 }),
                                 _buildDrawerItem('Minhas Compras', Icons.shopping_bag, () {
                                   Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/my_orders');
+                                  context.go('/meus-pedidos');
                                 }),
                                 _buildDrawerItem('Favoritos', Icons.favorite, () {
                                   Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/favorites');
+                                  context.go('/favoritos');
                                 }),
                                 _buildDrawerItem('Ofertas', Icons.local_offer, () {
                                   Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/offers');
+                                  context.go('/ofertas');
                                 }),
                                 _buildDrawerItem('Cupons', Icons.card_giftcard, () {
                                   Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/coupons');
+                                  context.go('/cupons');
                                 }),
                                 _buildDrawerItem('Minha Conta', Icons.person, () {
                                   Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/my_account');
+                                  context.go('/minha-conta');
                                 }),
                               ],
+                            ),
+                            
+                            const Divider(height: 30),
+                            
+                            // Seção SexyShop - Destaque Especial
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFFF6B9D), Color(0xFFFF8E53)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.pink.withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    context.go('/sexyshop');
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Icon(
+                                            Icons.favorite,
+                                            color: Colors.white,
+                                            size: 24,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'SexyShop',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Realce seus desejos, descubra prazeres\ne viva experiências sem tabus.',
+                                                style: TextStyle(
+                                                  color: Colors.white.withOpacity(0.9),
+                                                  fontSize: 11,
+                                                  height: 1.2,
+                                                ),
+                                                textAlign: TextAlign.left,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: const Text(
+                                            '18+',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                             
                             const Divider(height: 30),
@@ -1030,28 +1191,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             // Seção de Categorias
                             _buildDrawerSection(
                               'Categorias de Produtos',
-                              [
-                                _buildDrawerItem('Garrafeira', Icons.wine_bar, () {
-                                  Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/products');
-                                }),
-                                _buildDrawerItem('Compotas e Mel', Icons.hive, () {
-                                  Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/products');
-                                }),
-                                _buildDrawerItem('Doces', Icons.cake, () {
-                                  Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/products');
-                                }),
-                                _buildDrawerItem('Chás e Refrescos', Icons.local_cafe, () {
-                                  Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/products');
-                                }),
-                                _buildDrawerItem('Queijos e Pão', Icons.breakfast_dining, () {
-                                  Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/products');
-                                }),
-                              ],
+                              categories
+                                  .where((category) => category != 'Todos')
+                                  .take(10) // Limitar a 10 categorias no drawer
+                                  .map((category) => _buildDrawerItem(
+                                        category,
+                                        _getCategoryIcon(category),
+                                        () {
+                                          setState(() {
+                                            selectedCategory = category;
+                                            _filterProducts();
+                                          });
+                                          Navigator.pop(context);
+                                        },
+                                      ))
+                                  .toList(),
                             ),
                             
                             const Divider(height: 30),
@@ -1062,23 +1216,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               [
                                 _buildDrawerItem('Quem Somos', Icons.info, () {
                                   Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/about_us');
+                                  context.go('/sobre-nos');
                                 }),
                                 _buildDrawerItem('Nossa História', Icons.history, () {
                                   Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/our_history');
+                                  context.go('/nossa-historia');
                                 }),
                                 _buildDrawerItem('Política de Privacidade', Icons.privacy_tip, () {
                                   Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/privacy_policy');
+                                  context.go('/politica-privacidade');
                                 }),
                                 _buildDrawerItem('Termos de Uso', Icons.description, () {
                                   Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/terms_of_use');
+                                  context.go('/termos-uso');
                                 }),
                                 _buildDrawerItem('Contato', Icons.contact_support, () {
                                   Navigator.pop(context);
-                                  Navigator.pushNamed(context, '/contact');
+                                  context.go('/contato');
                                 }),
                               ],
                             ),
@@ -1266,19 +1420,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             Navigator.of(context).pop();
                           }),
                           _buildDrawerItem('Minhas Compras', Icons.shopping_bag, () {
-                            Navigator.pushNamed(context, '/my_orders');
+                            Navigator.pop(context);
+                            context.go('/meus-pedidos');
                           }),
                           _buildDrawerItem('Favoritos', Icons.favorite, () {
-                            Navigator.pushNamed(context, '/favorites');
+                            Navigator.pop(context);
+                            context.go('/favoritos');
                           }),
                           _buildDrawerItem('Ofertas', Icons.local_offer, () {
-                            Navigator.pushNamed(context, '/offers');
+                            Navigator.pop(context);
+                            context.go('/ofertas');
                           }),
                           _buildDrawerItem('Cupons', Icons.card_giftcard, () {
-                            Navigator.pushNamed(context, '/coupons');
+                            Navigator.pop(context);
+                            context.go('/cupons');
                           }),
                           _buildDrawerItem('Minha Conta', Icons.person, () {
-                            Navigator.pushNamed(context, '/my_account');
+                            Navigator.pop(context);
+                            context.go('/minha-conta');
                           }),
                         ],
                       ),
@@ -1288,23 +1447,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       // Seção de Categorias
                       _buildDrawerSection(
                         'Categorias de Produtos',
-                        [
-                          _buildDrawerItem('Garrafeira', Icons.wine_bar, () {
-                            Navigator.pushNamed(context, '/products');
-                          }),
-                          _buildDrawerItem('Compotas e Mel', Icons.hive, () {
-                            Navigator.pushNamed(context, '/products');
-                          }),
-                          _buildDrawerItem('Doces', Icons.cake, () {
-                            Navigator.pushNamed(context, '/products');
-                          }),
-                          _buildDrawerItem('Chás e Refrescos', Icons.local_cafe, () {
-                            Navigator.pushNamed(context, '/products');
-                          }),
-                          _buildDrawerItem('Queijos e Pão', Icons.breakfast_dining, () {
-                            Navigator.pushNamed(context, '/products');
-                          }),
-                        ],
+                        categories
+                            .where((category) => category != 'Todos')
+                            .take(10) // Limitar a 10 categorias no drawer
+                            .map((category) => _buildDrawerItem(
+                                  category,
+                                  _getCategoryIcon(category),
+                                  () {
+                                    setState(() {
+                                      selectedCategory = category;
+                                      _filterProducts();
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                ))
+                            .toList(),
                       ),
                       
                       const Divider(height: 30),
@@ -1314,19 +1471,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         'Sobre Mercado Da Sophia',
                         [
                           _buildDrawerItem('Quem Somos', Icons.info, () {
-                            Navigator.pushNamed(context, '/about_us');
+                            Navigator.pop(context);
+                            context.go('/sobre-nos');
                           }),
                           _buildDrawerItem('Nossa História', Icons.history, () {
-                            Navigator.pushNamed(context, '/our_history');
+                            Navigator.pop(context);
+                            context.go('/nossa-historia');
                           }),
                           _buildDrawerItem('Política de Privacidade', Icons.privacy_tip, () {
-                            Navigator.pushNamed(context, '/privacy_policy');
+                            Navigator.pop(context);
+                            context.go('/politica-privacidade');
                           }),
                           _buildDrawerItem('Termos de Uso', Icons.description, () {
-                            Navigator.pushNamed(context, '/terms_of_use');
+                            Navigator.pop(context);
+                            context.go('/termos-uso');
                           }),
                           _buildDrawerItem('Contato', Icons.contact_support, () {
-                            Navigator.pushNamed(context, '/contact');
+                            Navigator.pop(context);
+                            context.go('/contato');
                           }),
                         ],
                       ),
@@ -1411,17 +1573,306 @@ class _ProductsScreenState extends State<ProductsScreen> {
       ),
       onTap: () {
         Navigator.pop(context);
-        Navigator.pushNamed(context, '/my_account');
+        context.go('/minha-conta');
       },
       contentPadding: EdgeInsets.zero,
     );
   }
 
   void _showProductDetails(Product product) {
-    Navigator.pushNamed(
-      context,
-      '/product_detail',
-      arguments: {'product': product},
+    // Usar URLs amigáveis
+    FriendlyNavigator.pushProduct(context, product);
+  }
+
+  // Widget para logo personalizado
+  Widget _buildCustomLogo() {
+    return Container(
+      height: 60, // Altura fixa para evitar overflow
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // "MERCADO" - Fonte sans-serif maiúscula com contorno
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.black, width: 1.5),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(3),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            child: Text(
+              'MERCADO',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                color: Colors.black,
+                letterSpacing: 1.5,
+                fontFamily: 'Arial',
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 4),
+          
+          // Elemento gráfico de explosão/raios
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Raios superiores (rosa)
+              Icon(Icons.flash_on, color: AppTheme.primaryColor, size: 12),
+              const SizedBox(width: 2),
+              // Raios inferiores (cinza)
+              Icon(Icons.flash_on, color: Colors.grey[700], size: 12),
+            ],
+          ),
+          
+          const SizedBox(height: 4),
+          
+          // "DA SOPHIA" - Fonte cursiva em rosa
+          Text(
+            'DA SOPHIA',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              color: AppTheme.primaryColor,
+              fontStyle: FontStyle.italic,
+              letterSpacing: 1,
+              shadows: [
+                Shadow(
+                  offset: const Offset(0.5, 0.5),
+                  blurRadius: 1,
+                  color: Colors.black.withOpacity(0.2),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
-} 
+
+  // Widget para banner promocional com slide
+  Widget _buildPromoBanner() {
+    return Container(
+      width: kIsWeb ? MediaQuery.of(context).size.width * 0.8 : double.infinity,
+      height: kIsWeb ? 600 : 400,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Stack(
+        children: [
+                      // PageView para os slides
+            PageView.builder(
+              itemCount: _banners.isNotEmpty ? _banners.length : 0,
+            onPageChanged: (index) {
+              setState(() {
+                _currentBannerIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return _buildBannerSlide(index);
+            },
+          ),
+          
+          // Botões de controle
+          Positioned(
+            left: 16,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.chevron_left,
+                    color: Colors.black87,
+                    size: 24,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                                  final totalBanners = _banners.isNotEmpty ? _banners.length : 3;
+            _currentBannerIndex = (_currentBannerIndex - 1) % totalBanners;
+            if (_currentBannerIndex < 0) _currentBannerIndex = totalBanners - 1;
+                    });
+                  },
+                  padding: EdgeInsets.zero,
+                ),
+              ),
+            ),
+          ),
+          
+          Positioned(
+            right: 16,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.chevron_right,
+                    color: Colors.black87,
+                    size: 24,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      final totalBanners = _banners.isNotEmpty ? _banners.length : 3;
+            _currentBannerIndex = (_currentBannerIndex + 1) % totalBanners;
+                    });
+                  },
+                  padding: EdgeInsets.zero,
+                ),
+              ),
+            ),
+          ),
+          
+          // Indicadores de página
+          Positioned(
+            bottom: 16,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_banners.isNotEmpty ? _banners.length : 3, (index) {
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _currentBannerIndex = index;
+                    });
+                  },
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: index == _currentBannerIndex 
+                        ? Colors.white 
+                        : Colors.white.withOpacity(0.5),
+                      border: index == _currentBannerIndex 
+                        ? Border.all(color: Colors.white, width: 2)
+                        : null,
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Widget para cada slide do banner
+  Widget _buildBannerSlide(int index) {
+    // Só usar banners do Firebase
+    if (_banners.isNotEmpty && index < _banners.length) {
+      final banner = _banners[index];
+      return _buildFirebaseBanner(banner);
+    }
+
+    // Se não há banners do Firebase, retornar container vazio
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFE082), Color(0xFF8BC34A), Color(0xFF4CAF50)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const Center(
+        child: Text(
+          'Nenhum banner disponível',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Widget para construir banner do Firebase
+  Widget _buildFirebaseBanner(banner_model.Banner banner) {
+    return GestureDetector(
+      onTap: banner.linkProduto != null ? () {
+        // Abrir link do produto
+        launchUrl(Uri.parse(banner.linkProduto!));
+      } : null,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Image.network(
+            banner.image,
+            fit: BoxFit.fill,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFFFE082), Color(0xFF8BC34A), Color(0xFF4CAF50)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: const Center(
+                  child: Text(
+                    'Erro ao carregar imagem',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}

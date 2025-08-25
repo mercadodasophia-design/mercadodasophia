@@ -8,8 +8,23 @@
   },
   "hosting": [
     {
+      "target": "loja",
+      "public": "build/web_loja",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    },
+    {
       "target": "admin",
-      "public": "build/web",
+      "public": "build/web_admin",
       "ignore": [
         "firebase.json",
         "**/.*",

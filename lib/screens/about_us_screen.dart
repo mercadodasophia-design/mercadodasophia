@@ -291,9 +291,9 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      _buildContactItem(Icons.location_on, 'Rua das Flores, 123 - Centro, São Paulo/SP'),
+                      _buildContactItem(Icons.location_on, 'Zona Central de São Paulo, República, São Paulo - SP, 01037-010'),
                       const SizedBox(height: 8),
-                      _buildContactItem(Icons.phone, '(11) 99999-9999'),
+                                              _buildContactItem(Icons.phone, '(85) 99764-0050'),
                       const SizedBox(height: 8),
                       _buildContactItem(Icons.email, 'contato@mercadodasophia.com'),
                       const SizedBox(height: 8),
@@ -377,7 +377,7 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                           ),
                         ),
                         const Text(
-                          'São Paulo/SP - CEP: 01234-567',
+                          'República, São Paulo - SP, 01037-010',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.white70,
@@ -388,7 +388,7 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                           alignment: WrapAlignment.center,
                           spacing: 16,
                           children: [
-                            _buildFooterContact(Icons.phone, '(11) 99999-9999'),
+                            _buildFooterContact(Icons.phone, '(85) 99764-0050'),
                             _buildFooterContact(Icons.email, 'contato@mercadodasophia.com'),
                           ],
                         ),

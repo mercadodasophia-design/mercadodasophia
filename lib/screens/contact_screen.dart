@@ -111,7 +111,7 @@ class _ContactScreenState extends State<ContactScreen> {
                   // Cards de contato
                   _buildContactCard(
                     'Telefone',
-                    '(11) 99999-9999',
+                    '(85) 99764-0050',
                     Icons.phone,
                     Colors.green,
                     () => _callPhone(),
@@ -121,10 +121,20 @@ class _ContactScreenState extends State<ContactScreen> {
                   
                   _buildContactCard(
                     'WhatsApp',
-                    '(11) 99999-9999',
+                    '(85) 99764-0050',
                     Icons.chat,
                     Colors.green,
                     () => _openWhatsApp(),
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  _buildContactCard(
+                    'WhatsApp',
+                    '(85) 99111-2002',
+                    Icons.chat,
+                    Colors.green,
+                    () => _openWhatsApp2(),
                   ),
                   
                   const SizedBox(height: 12),
@@ -141,7 +151,7 @@ class _ContactScreenState extends State<ContactScreen> {
                   
                   _buildContactCard(
                     'Endereço',
-                    'Rua das Flores, 123 - Centro\nSão Paulo/SP - CEP: 01234-567',
+                    'Zona Central de São Paulo\nRepública, São Paulo - SP, 01037-010',
                     Icons.location_on,
                     Colors.red,
                     () => _openMaps(),
@@ -394,7 +404,7 @@ class _ContactScreenState extends State<ContactScreen> {
                           ),
                         ),
                         const Text(
-                          'São Paulo/SP - CEP: 01234-567',
+                          'República, São Paulo - SP, 01037-010',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.white70,
@@ -405,7 +415,7 @@ class _ContactScreenState extends State<ContactScreen> {
                           alignment: WrapAlignment.center,
                           spacing: 16,
                           children: [
-                            _buildFooterContact(Icons.phone, '(11) 99999-9999'),
+                            _buildFooterContact(Icons.phone, '(85) 99764-0050'),
                             _buildFooterContact(Icons.email, 'contato@mercadodasophia.com'),
                           ],
                         ),
@@ -519,6 +529,15 @@ class _ContactScreenState extends State<ContactScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Funcionalidade do WhatsApp em desenvolvimento'),
+        backgroundColor: AppTheme.primaryColor,
+      ),
+    );
+  }
+
+  void _openWhatsApp2() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Funcionalidade do WhatsApp 2 em desenvolvimento'),
         backgroundColor: AppTheme.primaryColor,
       ),
     );

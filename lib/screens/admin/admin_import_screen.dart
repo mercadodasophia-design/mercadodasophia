@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../services/aliexpress_service.dart';
-import '../../models/product.dart';
+import '../../models/product_model.dart';
 
 class AdminImportScreen extends StatefulWidget {
   const AdminImportScreen({super.key});

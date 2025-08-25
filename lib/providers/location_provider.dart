@@ -74,22 +74,29 @@ class LocationProvider extends ChangeNotifier {
     try {
       final user = authService.currentUser;
       if (user != null) {
+        print('🔍 Carregando endereço salvo para usuário: ${user.uid}');
+        
         final doc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .get();
         
         final userData = doc.data();
+        print('📄 Dados do usuário: $userData');
+        
         if (userData != null && userData['selectedAddress'] != null) {
           _savedAddress = Map<String, dynamic>.from(userData['selectedAddress']);
           _hasSavedAddress = true;
+          print('✅ Endereço salvo carregado: $_savedAddress');
           notifyListeners();
         } else {
           _hasSavedAddress = false;
           _savedAddress = null;
+          print('❌ Nenhum endereço salvo encontrado');
         }
       }
     } catch (e) {
+      print('❌ Erro ao carregar endereço salvo: $e');
       _hasSavedAddress = false;
       _savedAddress = null;
     }

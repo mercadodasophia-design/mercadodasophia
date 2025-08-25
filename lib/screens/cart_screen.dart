@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/cart_provider.dart';
 import '../models/cart_item.dart';
 import '../theme/app_theme.dart';
@@ -62,7 +63,13 @@ class _CartScreenState extends State<CartScreen> {
       elevation: 0,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
+        onPressed: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/produtos');
+          }
+        },
       ),
       title: const Text(
         'Carrinho de Compras',
@@ -169,7 +176,7 @@ class _CartScreenState extends State<CartScreen> {
           const SizedBox(height: 32),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              context.pop();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
@@ -236,7 +243,7 @@ class _CartScreenState extends State<CartScreen> {
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           
           // Lista de itens
           ...cartProvider.items.map((item) => _buildCartItemCard(item, cartProvider)),
@@ -482,14 +489,19 @@ class _CartScreenState extends State<CartScreen> {
           
           // Detalhes do pedido
           _buildOrderDetail('Subtotal', 'R\$ ${cartProvider.totalPrice.toStringAsFixed(2)}'),
-          _buildOrderDetail('Frete', 'Calculando...'),
+          _buildOrderDetail('Frete', _getShippingText(cartProvider)),
           _buildOrderDetail('Taxas', 'R\$ 0,00'),
           const Divider(height: 32),
           _buildOrderDetail(
             'Total',
-            'R\$ ${cartProvider.totalPrice.toStringAsFixed(2)}',
+            'R\$ ${(cartProvider.totalPrice + cartProvider.shippingCost).toStringAsFixed(2)}',
             isTotal: true,
           ),
+          
+          const SizedBox(height: 16),
+          
+          // Excelências da loja
+          _buildStoreExcellence(),
           
           const SizedBox(height: 24),
           
@@ -499,13 +511,8 @@ class _CartScreenState extends State<CartScreen> {
             height: 50,
             child: ElevatedButton(
               onPressed: cartProvider.hasUnavailableItems ? null : () {
-                // TODO: Implementar finalização da compra
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Finalização de compra em desenvolvimento'),
-                    backgroundColor: AppTheme.primaryColor,
-                  ),
-                );
+                // Navegar para a tela de checkout
+                context.go('/checkout');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
@@ -531,7 +538,7 @@ class _CartScreenState extends State<CartScreen> {
             width: double.infinity,
             height: 50,
             child: OutlinedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => context.pop(),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppTheme.primaryColor),
                 shape: RoundedRectangleBorder(
@@ -580,6 +587,146 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
+  // Método para obter texto do frete
+  String _getShippingText(CartProvider cartProvider) {
+    if (cartProvider.items.isEmpty) {
+      return 'R\$ 0,00';
+    }
+    
+    // Verificar se algum produto tem frete gratuito
+    bool hasFreeShipping = cartProvider.items.any((item) => 
+      item.product.envio != null && 
+      (item.product.envio!.toLowerCase().contains('grátis') || 
+       item.product.envio!.toLowerCase().contains('gratis') || 
+       item.product.envio!.toLowerCase().contains('free'))
+    );
+    
+    if (hasFreeShipping) {
+      return 'Grátis';
+    }
+    
+    // Se não há frete gratuito, usar o valor do produto com maior frete
+    double maxShippingValue = 0.0;
+    
+    for (final item in cartProvider.items) {
+      if (item.product.freightInfo != null && 
+          item.product.freightInfo!['value'] != null) {
+        final freightValue = (item.product.freightInfo!['value'] as num).toDouble();
+        if (freightValue > maxShippingValue) {
+          maxShippingValue = freightValue;
+        }
+      }
+    }
+    
+    if (maxShippingValue > 0) {
+      return 'R\$ ${maxShippingValue.toStringAsFixed(2)}';
+    }
+    
+    // Valor padrão se não há informações de frete
+    return 'R\$ 15,00';
+  }
+
+  // Widget para excelências da loja
+  Widget _buildStoreExcellence() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.green[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Vantagens Mercado da Sophia',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.green[800],
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Lista de benefícios
+          _buildExcellenceItem(
+            icon: Icons.local_shipping,
+            title: 'Frete Grátis',
+            description: 'Em compras selecionadas',
+          ),
+          _buildExcellenceItem(
+            icon: Icons.replay,
+            title: 'Devolução Grátis',
+            description: 'Até 30 dias para trocar',
+          ),
+          _buildExcellenceItem(
+            icon: Icons.credit_card,
+            title: 'Formas de Pagamento',
+            description: 'Cartão, PIX, Boleto',
+          ),
+          _buildExcellenceItem(
+            icon: Icons.security,
+            title: 'Compra Segura',
+            description: 'Seus dados protegidos',
+          ),
+          _buildExcellenceItem(
+            icon: Icons.support_agent,
+            title: 'Suporte Especializado',
+            description: 'Atendimento via WhatsApp',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Item individual da excelência
+  Widget _buildExcellenceItem({
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: Colors.green[600],
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.green[800],
+                  ),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.green[700],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.check_circle,
+            color: Colors.green[600],
+            size: 16,
+          ),
+        ],
+      ),
+    );
+  }
+
   // Diálogos
   void _showRemoveItemDialog(CartItem item, CartProvider cartProvider) {
     showDialog(
@@ -589,13 +736,13 @@ class _CartScreenState extends State<CartScreen> {
         content: Text('Deseja remover "${item.displayName}" do carrinho?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => context.pop(),
             child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () {
               cartProvider.removeItem(item.id);
-              Navigator.pop(context);
+              context.pop();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Remover'),
@@ -613,13 +760,13 @@ class _CartScreenState extends State<CartScreen> {
         content: const Text('Deseja remover todos os itens do carrinho?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => context.pop(),
             child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () {
               cartProvider.clearCart();
-              Navigator.pop(context);
+              context.pop();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Limpar'),
@@ -637,13 +784,13 @@ class _CartScreenState extends State<CartScreen> {
         content: const Text('Deseja remover todos os itens indisponíveis do carrinho?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => context.pop(),
             child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () {
               cartProvider.removeUnavailableItems();
-              Navigator.pop(context);
+              context.pop();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.orange),
             child: const Text('Remover'),
