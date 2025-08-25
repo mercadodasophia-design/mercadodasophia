@@ -1,11 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../services/order_tracking_service.dart';
 import '../services/auth_service.dart';
 import '../providers/cart_provider.dart';
+import '../config/api_config.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({super.key});
@@ -695,35 +699,52 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     const Spacer(),
                     
                     // Botões de ação
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () {
-                              // TODO: Implementar recompra
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.primaryColor,
-                              side: BorderSide(color: AppTheme.primaryColor),
-                            ),
-                            child: const Text('Recomprar'),
+                    if (order.status == 'pending') ...[
+                      // Botão para tentar pagamento novamente
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => _retryPayment(order),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
+                          child: const Text('Tentar Pagamento Novamente'),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              // TODO: Implementar rastreamento
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
+                      ),
+                    ] else ...[
+                      // Botões padrão para outros status
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                // TODO: Implementar recompra
+                              },
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppTheme.primaryColor,
+                                side: BorderSide(color: AppTheme.primaryColor),
+                              ),
+                              child: const Text('Recomprar'),
                             ),
-                            child: const Text('Rastrear'),
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                // TODO: Implementar rastreamento
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primaryColor,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Rastrear'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -849,6 +870,74 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         return 'Cancelado';
       default:
         return 'Desconhecido';
+    }
+  }
+
+  Future<void> _retryPayment(Order order) async {
+    try {
+      // Mostrar loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Fazer requisição para gerar nova preferência
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/orders/${order.id}/retry-payment'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({}),
+      );
+
+      // Fechar loading
+      Navigator.of(context).pop();
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        
+        if (result['success']) {
+          // Redirecionar para o Mercado Pago
+          final initPoint = result['init_point'];
+          
+          if (await canLaunchUrl(Uri.parse(initPoint))) {
+            await launchUrl(Uri.parse(initPoint), mode: LaunchMode.externalApplication);
+            
+            // Mostrar mensagem de sucesso
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('✅ Nova preferência gerada! Redirecionando para o Mercado Pago...'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          } else {
+            throw Exception('Não foi possível abrir o link de pagamento');
+          }
+        } else {
+          throw Exception(result['message'] ?? 'Erro ao gerar preferência');
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['message'] ?? 'Erro HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Erro ao tentar pagamento novamente: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 } 
