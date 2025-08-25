@@ -699,52 +699,83 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     const Spacer(),
                     
                     // Botões de ação
-                    if (order.status == 'pending') ...[
-                      // Botão para tentar pagamento novamente
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () => _retryPayment(order),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: const Text('Tentar Pagamento Novamente'),
-                        ),
-                      ),
-                    ] else ...[
-                      // Botões padrão para outros status
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () {
-                                // TODO: Implementar recompra
-                              },
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppTheme.primaryColor,
-                                side: BorderSide(color: AppTheme.primaryColor),
-                              ),
-                              child: const Text('Recomprar'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
+                    Column(
+                      children: [
+                        if (order.status == 'pending') ...[
+                          // Botão para tentar pagamento novamente
+                          SizedBox(
+                            width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () {
-                                // TODO: Implementar rastreamento
-                              },
+                              onPressed: () => _retryPayment(order),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
                               ),
-                              child: const Text('Rastrear'),
+                              child: const Text('Tentar Pagamento Novamente'),
                             ),
                           ),
+                          const SizedBox(height: 8),
+                          // Botão para cancelar pedido
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: () => _cancelOrder(order),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: BorderSide(color: Colors.red),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: const Text('Cancelar Pedido'),
+                            ),
+                          ),
+                        ] else ...[
+                          // Botões para outros status
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => _viewOrderItems(order),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppTheme.primaryColor,
+                                    side: BorderSide(color: AppTheme.primaryColor),
+                                  ),
+                                  child: const Text('Ver Produtos'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    // TODO: Implementar rastreamento
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryColor,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: const Text('Rastrear'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (order.status == 'confirmed' || order.status == 'processing') ...[
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton(
+                                onPressed: () => _cancelOrder(order),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                  side: BorderSide(color: Colors.red),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                                child: const Text('Cancelar Pedido'),
+                              ),
+                            ),
+                          ],
                         ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -928,6 +959,211 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       }
     } catch (e) {
       print('❌ Erro ao tentar pagamento novamente: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelOrder(Order order) async {
+    try {
+      // Mostrar diálogo de confirmação
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Cancelar Pedido'),
+          content: const Text('Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Não'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Sim, Cancelar'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) return;
+
+      // Mostrar loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Fazer requisição para cancelar pedido
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/orders/${order.id}/cancel'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'reason': 'Cancelado pelo usuário',
+        }),
+      );
+
+      // Fechar loading
+      Navigator.of(context).pop();
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        
+        if (result['success']) {
+          // Recarregar pedidos
+          await _loadOrders();
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Pedido cancelado com sucesso!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        } else {
+          throw Exception(result['message'] ?? 'Erro ao cancelar pedido');
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['message'] ?? 'Erro HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Erro ao cancelar pedido: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _viewOrderItems(Order order) async {
+    try {
+      // Mostrar loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Fazer requisição para buscar itens do pedido
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/orders/${order.id}/items'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      );
+
+      // Fechar loading
+      Navigator.of(context).pop();
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        
+        if (result['success']) {
+          final items = result['items'] as List;
+          
+          // Mostrar modal com os produtos
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Text('Produtos do Pedido ${order.id}'),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ...items.map((item) => Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: item['imageUrl'] != null
+                              ? Image.network(
+                                  item['imageUrl'],
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.image),
+                                )
+                              : const Icon(Icons.image),
+                          title: Text(item['title'] ?? item['name'] ?? 'Produto'),
+                          subtitle: Text('Quantidade: ${item['quantity']}'),
+                          trailing: Text(
+                            'R\$ ${(item['price'] ?? 0.0).toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ),
+                      )).toList(),
+                      const Divider(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Total:',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'R\$ ${(result['total'] ?? 0.0).toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Fechar'),
+                  ),
+                ],
+              ),
+            );
+          }
+        } else {
+          throw Exception(result['message'] ?? 'Erro ao buscar itens');
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['message'] ?? 'Erro HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Erro ao buscar itens do pedido: $e');
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -623,7 +623,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       } else {
         throw Exception('Erro HTTP: ${response.statusCode} - ${response.body}');
       }
-    } catch (e) {
+      } catch (e) {
       print('❌ Erro ao salvar pedido via servidor: $e');
       throw Exception('Erro ao salvar pedido: $e');
     }
