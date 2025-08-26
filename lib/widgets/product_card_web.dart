@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import '../models/product_model.dart';
 import '../theme/app_theme.dart';
-
+import '../providers/profit_margin_provider.dart';
 
 /// ProductCard para Web - Largura fixa de 230px
 /// 
@@ -118,63 +119,72 @@ class ProductCardWeb extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    // Preço com desconto
-                    if (product.descontoPercentual != null && product.descontoPercentual! > 0)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Preço original riscado
-                          Text(
-                            'R\$ ${product.preco.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey[600],
-                              decoration: TextDecoration.lineThrough,
-                              decorationColor: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          // Preço com desconto
-                          Row(
+                    // Preço com margem aplicada
+                    Consumer<ProfitMarginProvider>(
+                      builder: (context, marginProvider, child) {
+                        final displayPrice = marginProvider.isReady 
+                            ? marginProvider.calculateFinalPrice(product.preco, product.id ?? '')
+                            : product.preco;
+                        
+                        if (product.descontoPercentual != null && product.descontoPercentual! > 0) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Preço original riscado
                               Text(
-                                'R\$ ${(product.preco * (1 - (product.descontoPercentual! / 100))).toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.primaryColor,
+                                'R\$ ${displayPrice.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey[600],
+                                  decoration: TextDecoration.lineThrough,
+                                  decorationColor: Colors.grey[600],
                                 ),
                               ),
-                              const SizedBox(width: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFF6B9D),
-                                  borderRadius: BorderRadius.circular(3),
-                                ),
-                                child: Text(
-                                  '-${product.descontoPercentual!.toStringAsFixed(0)}%',
-                                  style: const TextStyle(
-                                    fontSize: 8,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
+                              const SizedBox(height: 2),
+                              // Preço com desconto
+                              Row(
+                                children: [
+                                  Text(
+                                    'R\$ ${(displayPrice * (1 - (product.descontoPercentual! / 100))).toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primaryColor,
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFF6B9D),
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                    child: Text(
+                                      '-${product.descontoPercentual!.toStringAsFixed(0)}%',
+                                      style: const TextStyle(
+                                        fontSize: 8,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                        ],
-                      )
-                    else
-                      // Preço normal sem desconto
-                      Text(
-                        'R\$ ${product.preco.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
+                          );
+                        } else {
+                          // Preço normal sem desconto
+                          return Text(
+                            'R\$ ${displayPrice.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                            ),
+                          );
+                        }
+                      },
+                    ),
                     const SizedBox(height: 4),
                     // Rating e vendas
                     Row(
@@ -205,8 +215,6 @@ class ProductCardWeb extends StatelessWidget {
                         ),
                       ],
                     ),
-
-                     
                   ],
                 ),
               ),

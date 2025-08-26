@@ -6,6 +6,7 @@ import 'dart:convert';
 import '../models/cart_item.dart';
 import '../models/product_model.dart';
 import '../services/freight_service.dart';
+import '../services/profit_margin_service.dart';
 
 
 class CartProvider with ChangeNotifier {
@@ -46,6 +47,16 @@ class CartProvider with ChangeNotifier {
 
   // Custo do frete
   double get shippingCost => _shippingCost;
+
+  // Método helper para obter preço com margem aplicada
+  Future<double> _getPriceWithMargin(double basePrice, String productId) async {
+    try {
+      return await ProfitMarginService.applyMarginToPrice(basePrice, productId);
+    } catch (e) {
+      print('❌ Erro ao aplicar margem: $e');
+      return basePrice;
+    }
+  }
 
   // Calcular frete para CEP específico
   Future<Map<String, dynamic>> calculateShipping(String cep) async {
@@ -215,12 +226,17 @@ class CartProvider with ChangeNotifier {
       return true;
     } else {
       // Adicionar novo item
+      final unitPrice = await _getPriceWithMargin(
+        variation?.price ?? (product.descontoPercentual != null && product.descontoPercentual! > 0 ? product.preco * (1 - (product.descontoPercentual! / 100)) : product.preco),
+        product.id ?? ''
+      );
+      
       final cartItem = CartItem(
         id: '', // Será definido pelo Firestore
         product: product,
         variation: variation,
         quantity: quantity,
-        unitPrice: variation?.price ?? (product.descontoPercentual != null && product.descontoPercentual! > 0 ? product.preco * (1 - (product.descontoPercentual! / 100)) : product.preco),
+        unitPrice: unitPrice,
         addedAt: DateTime.now(),
       );
       
@@ -259,12 +275,17 @@ class CartProvider with ChangeNotifier {
       }
     } else {
       // Adicionar novo item
+      final unitPrice = await _getPriceWithMargin(
+        variation?.price ?? (product.descontoPercentual != null && product.descontoPercentual! > 0 ? product.preco * (1 - (product.descontoPercentual! / 100)) : product.preco),
+        product.id ?? ''
+      );
+      
       final cartItem = CartItem(
         id: 'local_${DateTime.now().millisecondsSinceEpoch}', // ID local único
         product: product,
         variation: variation,
         quantity: quantity,
-        unitPrice: variation?.price ?? (product.descontoPercentual != null && product.descontoPercentual! > 0 ? product.preco * (1 - (product.descontoPercentual! / 100)) : product.preco),
+        unitPrice: unitPrice,
         addedAt: DateTime.now(),
       );
       

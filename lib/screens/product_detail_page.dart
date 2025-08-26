@@ -96,47 +96,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   Widget build(BuildContext context) {
     return Consumer<ProfitMarginProvider>(
       builder: (context, profitMarginProvider, child) {
-        // Aplicar margem no produto se o provider estiver pronto
-        Product displayProduct = widget.product;
-        if (profitMarginProvider.isReady) {
-          final basePrice = widget.product.preco;
-          final finalPrice = profitMarginProvider.calculateFinalPrice(basePrice, widget.product.id ?? '');
-          
-          displayProduct = Product(
-            id: widget.product.id,
-            aliexpressId: widget.product.aliexpressId,
-            images: widget.product.images,
-            titulo: widget.product.titulo,
-            variacoes: widget.product.variacoes,
-            descricao: widget.product.descricao,
-            preco: finalPrice,
-            oferta: widget.product.oferta,
-            descontoPercentual: widget.product.descontoPercentual,
-            marca: widget.product.marca,
-            tipo: widget.product.tipo,
-            origem: widget.product.origem,
-            categoria: widget.product.categoria,
-            dataPost: widget.product.dataPost,
-            idAdmin: widget.product.idAdmin,
-            envio: widget.product.envio,
-            secao: widget.product.secao,
-            isAvailable: widget.product.isAvailable,
-            rating: widget.product.rating,
-            reviewCount: widget.product.reviewCount,
-            weight: widget.product.weight,
-            length: widget.product.length,
-            height: widget.product.height,
-            width: widget.product.width,
-            diameter: widget.product.diameter,
-            formato: widget.product.formato,
-            freightInfo: widget.product.freightInfo,
-          );
-        }
-        
         return Scaffold(
           backgroundColor: Colors.white,
           appBar: _buildAppBar(),
-          body: kIsWeb ? _buildWebLayout() : _buildMobileLayout(),
+          body: kIsWeb ? _buildWebLayout(profitMarginProvider) : _buildMobileLayout(profitMarginProvider),
         );
       },
     );
@@ -216,7 +179,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     );
   }
 
-  Widget _buildWebLayout() {
+  Widget _buildWebLayout(ProfitMarginProvider profitMarginProvider) {
     return SingleChildScrollView(
       child: Center(
         child: Container(
@@ -252,7 +215,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     );
   }
 
-  Widget _buildMobileLayout() {
+  Widget _buildMobileLayout(ProfitMarginProvider profitMarginProvider) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -574,13 +537,21 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           )
         else
           // Preço normal sem desconto
-          Text(
-            'R\$ ${widget.product.preco.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontSize: kIsWeb ? 32 : 28,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryColor,
-            ),
+          Consumer<ProfitMarginProvider>(
+            builder: (context, marginProvider, child) {
+              final displayPrice = marginProvider.isReady 
+                  ? marginProvider.calculateFinalPrice(widget.product.preco, widget.product.id ?? '')
+                  : widget.product.preco;
+              
+              return Text(
+                'R\$ ${displayPrice.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: kIsWeb ? 32 : 28,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryColor,
+                ),
+              );
+            },
           ),
          // Mostrar faixa de preços se houver variações
          if (widget.product.hasVariations && widget.product.minPrice != widget.product.maxPrice) ...[
