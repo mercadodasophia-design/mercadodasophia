@@ -157,29 +157,8 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
     }
   }
 
-  // Buscar cotação atual do dólar
-  Future<double> _getDollarRate() async {
-    try {
-      final response = await http.get(
-        Uri.parse('https://economia.awesomeapi.com.br/json/last/USD-BRL'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final usdBrl = data['USDBRL'];
-        final ask = double.tryParse(usdBrl['ask'] ?? '5.2') ?? 5.2;
-        print('💱 Cotação do dólar: R\$ $ask');
-        return ask;
-      } else {
-        print('⚠️ Erro ao buscar cotação do dólar: ${response.statusCode}');
-        return 5.2; // Valor padrão se falhar
-      }
-    } catch (e) {
-      print('❌ Erro ao buscar cotação do dólar: $e');
-      return 5.2; // Valor padrão se falhar
-    }
-  }
+  // Método removido - não é mais necessário pois o FreightService
+  // calcula o frete diretamente em BRL usando a API dos Correios
 
   Future<void> _simulateShippingCalculation() async {
     print('🚀 _simulateShippingCalculation() iniciado');
@@ -315,41 +294,8 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
       });
     }
 
-    // Buscar cotação atual do dólar e converter para BRL
-    final dollarRate = await _getDollarRate();
-    final shippingPriceBRL = shippingPriceUSD * dollarRate;
-    
-    print('🚢 Frete USD: \$${shippingPriceUSD.toStringAsFixed(2)}');
-    print('💱 Cotação: R\$ ${dollarRate.toStringAsFixed(2)}');
-    print('🚢 Frete BRL: R\$ ${shippingPriceBRL.toStringAsFixed(2)}');
-
-    // Simular dados de frete com apenas um tipo de envio padrão
-    final simulatedData = {
-      'success': true,
-      'address': realAddress,
-      'shipping': [
-        {
-          'service_code': 'OWN_ECONOMY',
-          'service_name': 'Entrega Padrão',
-          'price': shippingPriceBRL,
-          'estimated_days': 12,
-          'carrier': 'Correios',
-        },
-      ],
-    };
-
-    setState(() {
-      _isLoading = false;
-      _shippingData = simulatedData;
-      // Selecionar automaticamente o serviço padrão
-      final shippingOptions = simulatedData['shipping'] as List<dynamic>?;
-      if (shippingOptions != null && shippingOptions.isNotEmpty) {
-        final firstOption = shippingOptions.first;
-        _selectedService = firstOption['service_code'] ?? 'OWN_ECONOMY';
-        final price = firstOption['price'] ?? 0.0;
-        widget.onShippingSelected(price);
-      }
-    });
+    // Este código foi removido pois agora usamos o FreightService
+    // que calcula o frete diretamente em BRL usando a API dos Correios
   }
 
   Future<void> _calculateShipping() async {
