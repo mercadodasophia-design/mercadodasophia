@@ -231,16 +231,19 @@ class _CartScreenState extends State<CartScreen> {
 
   Widget _buildItemsList(CartProvider cartProvider) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Itens no Carrinho (${cartProvider.itemCount})',
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Text(
+              'Itens no Carrinho (${cartProvider.itemCount})',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
           ),
           

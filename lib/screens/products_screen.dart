@@ -48,7 +48,7 @@ class ProductsScreen extends StatefulWidget {
   State<ProductsScreen> createState() => _ProductsScreenState();
 }
 
-class _ProductsScreenState extends State<ProductsScreen> {
+class _ProductsScreenState extends State<ProductsScreen> with AutomaticKeepAliveClientMixin {
   List<Product> products = [];
   String? selectedCategory;
   List<Product> filteredProducts = [];
@@ -61,6 +61,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
   bool _isLoadingBanners = true;
   late PageController _pageController;
   Timer? _bannerTimer;
+  
+  // Controle de rolagem para manter posição
+  late ScrollController _scrollController;
+  double _savedScrollPosition = 0.0;
+
+  @override
+  bool get wantKeepAlive => true;
   
 
 
@@ -79,11 +86,34 @@ class _ProductsScreenState extends State<ProductsScreen> {
     // }
     
     _pageController = PageController();
+    _scrollController = ScrollController();
+    
+    // Adicionar listener para salvar posição de rolagem
+    _scrollController.addListener(_saveScrollPosition);
+    
     _loadProducts();
     _loadCategories();
     _loadBanners();
     _initializeLocation();
     _loadSavedAddress();
+  }
+
+  void _saveScrollPosition() {
+    if (_scrollController.hasClients) {
+      _savedScrollPosition = _scrollController.offset;
+    }
+  }
+
+  void _restoreScrollPosition() {
+    if (_scrollController.hasClients && _savedScrollPosition > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollController.animateTo(
+          _savedScrollPosition,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      });
+    }
   }
 
   Future<void> _initializeLocation() async {
@@ -206,11 +236,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
   void dispose() {
     _stopBannerTimer();
     _pageController.dispose();
+    _scrollController.removeListener(_saveScrollPosition);
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Necessário para AutomaticKeepAliveClientMixin
+    
+    // Restaurar posição de rolagem quando a tela for reconstruída
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _restoreScrollPosition();
+    });
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: Column(
@@ -380,6 +419,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           // Conteúdo principal com rodapé rolável
           Expanded(
             child: SingleChildScrollView(
+              controller: _scrollController,
               child: Column(
                 children: [
                   // Banner promocional

@@ -19,7 +19,7 @@ class SexyShopScreen extends StatefulWidget {
   _SexyShopScreenState createState() => _SexyShopScreenState();
 }
 
-class _SexyShopScreenState extends State<SexyShopScreen> {
+class _SexyShopScreenState extends State<SexyShopScreen> with AutomaticKeepAliveClientMixin {
   final PageController _bannerController = PageController();
   
   List<Product> _products = []; // Todos os produtos
@@ -42,17 +42,41 @@ class _SexyShopScreenState extends State<SexyShopScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  double _savedScrollPosition = 0.0;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
     _loadData();
     _scrollController.addListener(_onScroll);
+    _scrollController.addListener(_saveScrollPosition);
+  }
+
+  void _saveScrollPosition() {
+    if (_scrollController.hasClients) {
+      _savedScrollPosition = _scrollController.offset;
+    }
+  }
+
+  void _restoreScrollPosition() {
+    if (_scrollController.hasClients && _savedScrollPosition > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollController.animateTo(
+          _savedScrollPosition,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      });
+    }
   }
 
   @override
   void dispose() {
     _bannerController.dispose();
+    _scrollController.removeListener(_saveScrollPosition);
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -207,6 +231,13 @@ class _SexyShopScreenState extends State<SexyShopScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Necessário para AutomaticKeepAliveClientMixin
+    
+    // Restaurar posição de rolagem quando a tela for reconstruída
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _restoreScrollPosition();
+    });
+    
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A), // Fundo escuro
       appBar: PreferredSize(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -690,15 +691,7 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
             ),
             const SizedBox(width: 8),
             ElevatedButton.icon(
-              onPressed: () {
-                // TODO: Implementar tela para alterar endereço
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Funcionalidade de alterar endereço será implementada em breve'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
+              onPressed: () => _showAddressSelectionDialog(),
               icon: const Icon(Icons.edit_location, size: 18),
               label: const Text('Alterar'),
               style: ElevatedButton.styleFrom(
@@ -857,5 +850,147 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
       return int.tryParse(cleanDays) ?? 0;
     }
     return 0;
+  }
+
+  // Mostrar diálogo de seleção de endereço
+  Future<void> _showAddressSelectionDialog() async {
+    try {
+      final authService = context.read<AuthService>();
+      if (!authService.isAuthenticated) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Faça login para gerenciar seus endereços'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      final user = authService.currentUser;
+      if (user == null) return;
+
+      // Buscar endereços do usuário
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final userData = userDoc.data();
+      if (userData == null || userData['addresses'] == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nenhum endereço cadastrado encontrado'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      final addresses = List<Map<String, dynamic>>.from(userData['addresses']);
+      if (addresses.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nenhum endereço cadastrado encontrado'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      // Mostrar diálogo de seleção
+      final selectedAddress = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (context) => _AddressSelectionDialog(addresses: addresses),
+      );
+
+      if (selectedAddress != null) {
+        // Atualizar endereço selecionado no Firebase
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({
+          'selectedAddress': selectedAddress,
+        });
+
+        // Atualizar estado local
+        setState(() {
+          final cep = selectedAddress['cep'] ?? '';
+          final street = selectedAddress['street'] ?? '';
+          final number = selectedAddress['number'] ?? '';
+          final neighborhood = selectedAddress['neighborhood'] ?? '';
+          final city = selectedAddress['city'] ?? '';
+          final state = selectedAddress['state'] ?? '';
+          
+          _userAddress = '$street, $number - $neighborhood, $city - $state';
+          _userCep = cep;
+          _cepController.text = cep;
+        });
+
+        // Recalcular frete com novo endereço
+        await _calculateShipping();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Endereço alterado com sucesso'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Erro ao selecionar endereço: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao alterar endereço: $e'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+}
+
+// Widget para diálogo de seleção de endereço
+class _AddressSelectionDialog extends StatelessWidget {
+  final List<Map<String, dynamic>> addresses;
+
+  const _AddressSelectionDialog({required this.addresses});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Selecionar Endereço'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: addresses.length,
+          itemBuilder: (context, index) {
+            final address = addresses[index];
+            final street = address['street'] ?? '';
+            final number = address['number'] ?? '';
+            final neighborhood = address['neighborhood'] ?? '';
+            final city = address['city'] ?? '';
+            final state = address['state'] ?? '';
+            final cep = address['cep'] ?? '';
+            
+            final addressText = '$street, $number - $neighborhood, $city - $state';
+            
+            return ListTile(
+              leading: const Icon(Icons.location_on),
+              title: Text(addressText),
+              subtitle: Text('CEP: $cep'),
+              onTap: () {
+                Navigator.of(context).pop(address);
+              },
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+      ],
+    );
   }
 }
