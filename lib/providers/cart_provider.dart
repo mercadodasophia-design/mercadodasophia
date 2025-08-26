@@ -160,6 +160,11 @@ class CartProvider with ChangeNotifier {
         _items = querySnapshot.docs.map((doc) {
           return CartItem.fromFirestore(doc.data(), doc.id);
         }).toList();
+        
+        // Calcular frete automaticamente se há itens
+        if (_items.isNotEmpty) {
+          await loadUserAddressAndCalculateShipping();
+        }
       } else {
         // Usuário não logado - carregar do armazenamento local
         await _loadLocalCart();
@@ -573,6 +578,29 @@ class CartProvider with ChangeNotifier {
     } catch (e) {
       print('Erro ao verificar pedidos aprovados: $e');
       return false;
+    }
+  }
+
+  // Carregar endereço do usuário e calcular frete automaticamente
+  Future<void> loadUserAddressAndCalculateShipping() async {
+    if (_auth.currentUser == null || _items.isEmpty) return;
+    
+    try {
+      // Buscar endereço do usuário
+      final userDoc = await _firestore.collection('users').doc(_auth.currentUser!.uid).get();
+      final userData = userDoc.data();
+      
+      if (userData != null && userData['selectedAddress'] != null) {
+        final address = userData['selectedAddress'];
+        final cep = address['cep'] ?? '';
+        
+        if (cep.isNotEmpty) {
+          print('🚚 Calculando frete para CEP: $cep');
+          await calculateShipping(cep);
+        }
+      }
+    } catch (e) {
+      print('❌ Erro ao carregar endereço e calcular frete: $e');
     }
   }
 }

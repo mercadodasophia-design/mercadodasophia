@@ -243,9 +243,8 @@ class _CartScreenState extends State<CartScreen> {
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 8),
           
-          // Lista de itens
+          // Lista de itens (sem espaçamento extra)
           ...cartProvider.items.map((item) => _buildCartItemCard(item, cartProvider)),
           
           // Aviso sobre itens indisponíveis
@@ -593,6 +592,11 @@ class _CartScreenState extends State<CartScreen> {
       return 'R\$ 0,00';
     }
     
+    // Usar o shippingCost calculado pelo provider
+    if (cartProvider.shippingCost > 0) {
+      return 'R\$ ${cartProvider.shippingCost.toStringAsFixed(2)}';
+    }
+    
     // Verificar se algum produto tem frete gratuito
     bool hasFreeShipping = cartProvider.items.any((item) => 
       item.product.envio != null && 
@@ -603,23 +607,6 @@ class _CartScreenState extends State<CartScreen> {
     
     if (hasFreeShipping) {
       return 'Grátis';
-    }
-    
-    // Se não há frete gratuito, usar o valor do produto com maior frete
-    double maxShippingValue = 0.0;
-    
-    for (final item in cartProvider.items) {
-      if (item.product.freightInfo != null && 
-          item.product.freightInfo!['value'] != null) {
-        final freightValue = (item.product.freightInfo!['value'] as num).toDouble();
-        if (freightValue > maxShippingValue) {
-          maxShippingValue = freightValue;
-        }
-      }
-    }
-    
-    if (maxShippingValue > 0) {
-      return 'R\$ ${maxShippingValue.toStringAsFixed(2)}';
     }
     
     // Valor padrão se não há informações de frete

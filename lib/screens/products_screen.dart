@@ -194,56 +194,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
 
   void _filterProducts() {
-    final profitMarginProvider = Provider.of<ProfitMarginProvider>(context, listen: false);
-    
-    List<Product> productsToFilter;
-    
-    // Aplicar margens apenas se o provider estiver pronto
-    if (profitMarginProvider.isReady) {
-      productsToFilter = products.map((product) {
-        final basePrice = product.preco;
-        final finalPrice = profitMarginProvider.calculateFinalPrice(basePrice, product.id ?? '');
-        
-        // Criar novo produto com preço atualizado
-        return Product(
-          id: product.id,
-          aliexpressId: product.aliexpressId,
-          images: product.images,
-          titulo: product.titulo,
-          variacoes: product.variacoes,
-          descricao: product.descricao,
-          preco: finalPrice,
-          oferta: product.oferta,
-          descontoPercentual: product.descontoPercentual,
-          marca: product.marca,
-          tipo: product.tipo,
-          origem: product.origem,
-          categoria: product.categoria,
-          dataPost: product.dataPost,
-          idAdmin: product.idAdmin,
-          envio: product.envio,
-          secao: product.secao,
-          isAvailable: product.isAvailable,
-          rating: product.rating,
-          reviewCount: product.reviewCount,
-          weight: product.weight,
-          length: product.length,
-          height: product.height,
-          width: product.width,
-          diameter: product.diameter,
-          formato: product.formato,
-          freightInfo: product.freightInfo,
-        );
-      }).toList();
-    } else {
-      // Se não está pronto, usar produtos originais
-      productsToFilter = products;
-    }
-    
+    // Não aplicar margens aqui, deixar para os widgets fazerem isso
     if (selectedCategory == null || selectedCategory == 'Todos') {
-      filteredProducts = productsToFilter;
+      filteredProducts = products;
     } else {
-      filteredProducts = productsToFilter.where((product) => product.categoria == selectedCategory).toList();
+      filteredProducts = products.where((product) => product.categoria == selectedCategory).toList();
     }
   }
 

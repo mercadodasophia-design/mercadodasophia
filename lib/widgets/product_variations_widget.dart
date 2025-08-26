@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/product_model.dart';
-
 import '../theme/app_theme.dart';
+import '../providers/profit_margin_provider.dart';
 
 class ProductVariationsWidget extends StatefulWidget {
   final Product product;
@@ -365,35 +366,43 @@ class _ProductVariationsWidgetState extends State<ProductVariationsWidget> {
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'R\$ ${variation.price.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: variation.hasStock ? AppTheme.primaryColor : Colors.grey[600],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: variation.hasStock ? Colors.green[100] : Colors.red[100],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      variation.hasStock 
-                          ? '${variation.stock} em estoque'
-                          : 'Sem estoque',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: variation.hasStock ? Colors.green[700] : Colors.red[700],
-                        fontWeight: FontWeight.w600,
+              Consumer<ProfitMarginProvider>(
+                builder: (context, marginProvider, child) {
+                  final displayPrice = marginProvider.isReady 
+                      ? marginProvider.calculateFinalPrice(variation.price, widget.product.id ?? '')
+                      : variation.price;
+                  
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'R\$ ${displayPrice.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: variation.hasStock ? AppTheme.primaryColor : Colors.grey[600],
+                        ),
                       ),
-                    ),
-                  ),
-                ],
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: variation.hasStock ? Colors.green[100] : Colors.red[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          variation.hasStock 
+                              ? '${variation.stock} em estoque'
+                              : 'Sem estoque',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: variation.hasStock ? Colors.green[700] : Colors.red[700],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

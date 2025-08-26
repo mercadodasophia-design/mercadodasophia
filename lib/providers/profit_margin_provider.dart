@@ -61,7 +61,15 @@ class ProfitMarginProvider with ChangeNotifier {
     if (!isReady) return basePrice; // Retorna preço original se não está pronto
     
     final margin = getProductMargin(productId);
-    return ProfitMarginService.calculateFinalPrice(basePrice, margin);
+    final finalPrice = ProfitMarginService.calculateFinalPrice(basePrice, margin);
+    
+    // Debug: imprimir informações de cálculo
+    print('🔍 Debug Margem - Produto: $productId');
+    print('   Preço base: R\$ ${basePrice.toStringAsFixed(2)}');
+    print('   Margem aplicada: ${margin.toStringAsFixed(1)}%');
+    print('   Preço final: R\$ ${finalPrice.toStringAsFixed(2)}');
+    
+    return finalPrice;
   }
 
   /// Aplica margem em uma lista de produtos

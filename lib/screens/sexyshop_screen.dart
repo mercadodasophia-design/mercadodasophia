@@ -5,9 +5,11 @@ import '../models/product_model.dart';
 import '../models/banner_model.dart' as banner_model;
 import '../services/product_service.dart';
 import '../services/banner_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/product_card_web.dart';
 import '../widgets/friendly_router.dart';
 import '../providers/profit_margin_provider.dart';
+import '../providers/location_provider.dart';
 import 'package:provider/provider.dart';
 
 class SexyShopScreen extends StatefulWidget {
@@ -60,7 +62,21 @@ class _SexyShopScreenState extends State<SexyShopScreen> {
     await Future.wait([
       _loadSexyShopProducts(reset: true),
       _loadBanners(),
+      _loadSavedAddress(),
     ]);
+  }
+
+  Future<void> _loadSavedAddress() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+      
+      if (authService.isAuthenticated) {
+        await locationProvider.loadSavedAddressWithAuth(authService);
+      }
+    } catch (e) {
+      print('❌ Erro ao carregar endereço salvo: $e');
+    }
   }
 
   Future<void> _loadSexyShopProducts({bool reset = false}) async {
@@ -164,53 +180,8 @@ class _SexyShopScreenState extends State<SexyShopScreen> {
   }
 
   void _filterProducts() {
-    final profitMarginProvider = Provider.of<ProfitMarginProvider>(context, listen: false);
-    
-    List<Product> productsToFilter;
-    
-    // Aplicar margens apenas se o provider estiver pronto
-    if (profitMarginProvider.isReady) {
-      productsToFilter = _products.map((product) {
-        final basePrice = product.preco;
-        final finalPrice = profitMarginProvider.calculateFinalPrice(basePrice, product.id ?? '');
-        
-        // Criar novo produto com preço atualizado
-        return Product(
-          id: product.id,
-          aliexpressId: product.aliexpressId,
-          images: product.images,
-          titulo: product.titulo,
-          variacoes: product.variacoes,
-          descricao: product.descricao,
-          preco: finalPrice,
-          oferta: product.oferta,
-          descontoPercentual: product.descontoPercentual,
-          marca: product.marca,
-          tipo: product.tipo,
-          origem: product.origem,
-          categoria: product.categoria,
-          dataPost: product.dataPost,
-          idAdmin: product.idAdmin,
-          envio: product.envio,
-          secao: product.secao,
-          isAvailable: product.isAvailable,
-          rating: product.rating,
-          reviewCount: product.reviewCount,
-          weight: product.weight,
-          length: product.length,
-          height: product.height,
-          width: product.width,
-          diameter: product.diameter,
-          formato: product.formato,
-          freightInfo: product.freightInfo,
-        );
-      }).toList();
-    } else {
-      // Se não está pronto, usar produtos originais
-      productsToFilter = _products;
-    }
-    
-    List<Product> filtered = List.from(productsToFilter);
+    // Não aplicar margens aqui, deixar para os widgets fazerem isso
+    List<Product> filtered = List.from(_products);
     
     // Filtrar por categoria
     if (_selectedCategory != 'Todos') {

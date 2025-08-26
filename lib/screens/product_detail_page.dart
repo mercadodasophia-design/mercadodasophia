@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 
 import '../providers/cart_provider.dart';
 import '../providers/profit_margin_provider.dart';
+import '../providers/location_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/product_variations_widget.dart';
 import '../widgets/cart_badge.dart';
@@ -46,6 +47,22 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         orElse: () => widget.product.variations.first,
       );
       _selectedVariation = firstAvailable;
+    }
+    
+    // Carregar endereço salvo do usuário se estiver logado
+    _loadSavedAddress();
+  }
+
+  Future<void> _loadSavedAddress() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+      
+      if (authService.isAuthenticated) {
+        await locationProvider.loadSavedAddressWithAuth(authService);
+      }
+    } catch (e) {
+      print('❌ Erro ao carregar endereço salvo: $e');
     }
   }
 
@@ -477,71 +494,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         ),
         const SizedBox(height: 16),
         
-                 // Preço com desconto
+                 // Preço com margem aplicada
         if (widget.product.hasVariations && _selectedVariation != null)
           // Preço da variação selecionada
-          Text(
-            'R\$ ${_selectedVariation!.price.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontSize: kIsWeb ? 32 : 28,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryColor,
-            ),
-          )
-        else if (widget.product.descontoPercentual != null && widget.product.descontoPercentual! > 0)
-          // Preço com desconto
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Preço original riscado
-              Text(
-                'R\$ ${widget.product.preco.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontSize: kIsWeb ? 20 : 18,
-                  color: Colors.grey[600],
-                  decoration: TextDecoration.lineThrough,
-                  decorationColor: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 4),
-              // Preço com desconto
-              Row(
-                children: [
-                  Text(
-                    'R\$ ${(widget.product.preco * (1 - (widget.product.descontoPercentual! / 100))).toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: kIsWeb ? 32 : 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF6B9D),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '-${widget.product.descontoPercentual!.toStringAsFixed(0)}%',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          )
-        else
-          // Preço normal sem desconto
           Consumer<ProfitMarginProvider>(
             builder: (context, marginProvider, child) {
               final displayPrice = marginProvider.isReady 
-                  ? marginProvider.calculateFinalPrice(widget.product.preco, widget.product.id ?? '')
-                  : widget.product.preco;
+                  ? marginProvider.calculateFinalPrice(_selectedVariation!.price, widget.product.id ?? '')
+                  : _selectedVariation!.price;
               
               return Text(
                 'R\$ ${displayPrice.toStringAsFixed(2)}',
@@ -552,7 +512,74 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 ),
               );
             },
-          ),
+          )
+        else
+          Consumer<ProfitMarginProvider>(
+          builder: (context, marginProvider, child) {
+            final displayPrice = marginProvider.isReady 
+                ? marginProvider.calculateFinalPrice(widget.product.preco, widget.product.id ?? '')
+                : widget.product.preco;
+            
+            if (widget.product.descontoPercentual != null && widget.product.descontoPercentual! > 0) {
+              // Preço com desconto
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Preço original riscado
+                  Text(
+                    'R\$ ${displayPrice.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: kIsWeb ? 20 : 18,
+                      color: Colors.grey[600],
+                      decoration: TextDecoration.lineThrough,
+                      decorationColor: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Preço com desconto
+                  Row(
+                    children: [
+                      Text(
+                        'R\$ ${(displayPrice * (1 - (widget.product.descontoPercentual! / 100))).toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: kIsWeb ? 32 : 28,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6B9D),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '-${widget.product.descontoPercentual!.toStringAsFixed(0)}%',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            } else {
+              // Preço normal sem desconto
+              return Text(
+                'R\$ ${displayPrice.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: kIsWeb ? 32 : 28,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryColor,
+                ),
+              );
+            }
+          },
+        ),
          // Mostrar faixa de preços se houver variações
          if (widget.product.hasVariations && widget.product.minPrice != widget.product.maxPrice) ...[
            const SizedBox(height: 4),
@@ -580,13 +607,27 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                children: [
                  Icon(Icons.local_shipping, color: Colors.green[600], size: 16),
                  const SizedBox(width: 8),
-                 Text(
-                   'Total com frete: R\$ ${((widget.product.hasVariations && _selectedVariation != null ? _selectedVariation!.price : (widget.product.descontoPercentual != null && widget.product.descontoPercentual! > 0 ? widget.product.preco * (1 - (widget.product.descontoPercentual! / 100)) : widget.product.preco)) * _quantity + _shippingCost).toStringAsFixed(2)}',
-                   style: TextStyle(
-                     fontSize: 14,
-                     fontWeight: FontWeight.w600,
-                     color: Colors.green[800],
-                   ),
+                 Consumer<ProfitMarginProvider>(
+                   builder: (context, marginProvider, child) {
+                     final basePrice = widget.product.hasVariations && _selectedVariation != null 
+                         ? _selectedVariation!.price 
+                         : (widget.product.descontoPercentual != null && widget.product.descontoPercentual! > 0 
+                             ? widget.product.preco * (1 - (widget.product.descontoPercentual! / 100)) 
+                             : widget.product.preco);
+                     
+                     final displayPrice = marginProvider.isReady 
+                         ? marginProvider.calculateFinalPrice(basePrice, widget.product.id ?? '')
+                         : basePrice;
+                     
+                     return Text(
+                       'Total com frete: R\$ ${(displayPrice * _quantity + _shippingCost).toStringAsFixed(2)}',
+                       style: TextStyle(
+                         fontSize: 14,
+                         fontWeight: FontWeight.w600,
+                         color: Colors.green[800],
+                       ),
+                     );
+                   },
                  ),
                ],
              ),
@@ -1053,7 +1094,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
          if (success) {
        // Calcular preço e informações
        final variation = _selectedVariation;
-       final price = variation?.price ?? (widget.product.descontoPercentual != null && widget.product.descontoPercentual! > 0 ? widget.product.preco * (1 - (widget.product.descontoPercentual! / 100)) : widget.product.preco);
+       final basePrice = variation?.price ?? (widget.product.descontoPercentual != null && widget.product.descontoPercentual! > 0 ? widget.product.preco * (1 - (widget.product.descontoPercentual! / 100)) : widget.product.preco);
+       
+       // Aplicar margem se o provider estiver disponível
+       final profitMarginProvider = Provider.of<ProfitMarginProvider>(context, listen: false);
+       final price = profitMarginProvider.isReady 
+           ? profitMarginProvider.calculateFinalPrice(basePrice, widget.product.id ?? '')
+           : basePrice;
        final totalPrice = price * _quantity;
        final totalWithShipping = totalPrice + _shippingCost;
        
