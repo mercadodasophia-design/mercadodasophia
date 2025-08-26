@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../models/product_model.dart';
 import '../services/product_service.dart';
 import '../services/auth_service.dart';
@@ -30,7 +31,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   void _checkAuthentication() {
     final authService = Provider.of<AuthService>(context, listen: false);
     if (!authService.isAuthenticated) {
-      Navigator.pushReplacementNamed(context, '/login');
+      context.go('/login');
       return;
     }
     _loadFavorites();
@@ -100,7 +101,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pushReplacementNamed(context, '/products'),
+          onPressed: () => context.go('/produtos'),
         ),
         actions: [
           if (favorites.isNotEmpty)
@@ -346,7 +347,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () {
-              Navigator.pushReplacementNamed(context, '/products');
+              context.go('/produtos');
             },
             icon: const Icon(Icons.shopping_bag),
             label: const Text('Explorar Produtos'),
@@ -404,7 +405,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       selected: false,
       onSelected: (selected) {
         // Navegar para produtos com categoria selecionada
-        Navigator.pushReplacementNamed(context, '/products');
+        context.go('/produtos');
       },
     );
   }

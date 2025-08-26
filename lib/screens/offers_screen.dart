@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../models/product_model.dart';
 import '../services/product_service.dart';
 import '../widgets/product_card_v2.dart';
@@ -72,7 +73,7 @@ class _OffersScreenState extends State<OffersScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pushReplacementNamed(context, '/products'),
+          onPressed: () => context.go('/produtos'),
         ),
       ),
       body: SingleChildScrollView(

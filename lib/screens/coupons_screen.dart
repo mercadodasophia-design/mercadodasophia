@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 
@@ -88,7 +89,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
   void _checkAuthentication() {
     final authService = Provider.of<AuthService>(context, listen: false);
     if (!authService.isAuthenticated) {
-      Navigator.pushReplacementNamed(context, '/login');
+      context.go('/login');
       return;
     }
   }
@@ -114,7 +115,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pushReplacementNamed(context, '/products'),
+          onPressed: () => context.go('/produtos'),
         ),
       ),
       body: SingleChildScrollView(
@@ -475,7 +476,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
           label: 'Ver Carrinho',
           textColor: Colors.white,
           onPressed: () {
-            Navigator.pushNamed(context, '/cart');
+            context.go('/carrinho');
           },
         ),
       ),
@@ -488,7 +489,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
       selected: false,
       onSelected: (selected) {
         // Navegar para produtos com categoria selecionada
-        Navigator.pushReplacementNamed(context, '/products');
+        context.go('/produtos');
       },
     );
   }

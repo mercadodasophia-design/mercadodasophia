@@ -282,6 +282,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   },
                 ),
                 _buildDrawerItem(
+                  icon: Icons.message,
+                  title: 'Mensagens de Contato',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/admin/contact-messages');
+                  },
+                ),
+                _buildDrawerItem(
                   icon: Icons.settings,
                   title: 'Configurações',
                   onTap: () {

@@ -43,14 +43,14 @@ class _AdminAddProductScreenState extends State<AdminAddProductScreen> {
   String _selectedSection = 'Loja'; // 'Loja' ou 'SexyShop'
   
   // Categorias disponíveis
-  final List<String> _categorias = [
-    'Garrafeira',
-    'Compotas e Mel',
-    'Doces',
-    'Chás e Refrescos',
-    'Queijos e Pão',
-    'Outros'
-  ];
+  List<String> _categorias = [];
+  bool _isLoadingCategories = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
 
   @override
   void dispose() {
@@ -65,6 +65,40 @@ class _AdminAddProductScreenState extends State<AdminAddProductScreen> {
     _aliexpressIdController.dispose();
     _envioController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      setState(() {
+        _isLoadingCategories = true;
+      });
+
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('categorias')
+          .orderBy('nome')
+          .get();
+
+      final categories = querySnapshot.docs
+          .map((doc) => doc.data()['nome'] as String)
+          .toList();
+
+      setState(() {
+        _categorias = categories;
+        _isLoadingCategories = false;
+      });
+    } catch (e) {
+      print('❌ Erro ao carregar categorias: $e');
+      setState(() {
+        _isLoadingCategories = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao carregar categorias: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _pickImage() async {
@@ -161,22 +195,9 @@ class _AdminAddProductScreenState extends State<AdminAddProductScreen> {
                     }
                     return null;
                   },
-                  onFieldSubmitted: (value) {
+                  onFieldSubmitted: (value) async {
                     if (formKey.currentState!.validate()) {
-                      final newCategory = newCategoryController.text.trim();
-                      if (newCategory.isNotEmpty && !_categorias.contains(newCategory)) {
-                        setState(() {
-                          _categorias.add(newCategory);
-                          _categoriaController.text = newCategory;
-                        });
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Categoria "$newCategory" adicionada com sucesso!'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
+                      await _addNewCategory(newCategoryController.text.trim());
                     }
                   },
                 ),
@@ -190,22 +211,9 @@ class _AdminAddProductScreenState extends State<AdminAddProductScreen> {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               if (formKey.currentState!.validate()) {
-                final newCategory = newCategoryController.text.trim();
-                if (newCategory.isNotEmpty && !_categorias.contains(newCategory)) {
-                  setState(() {
-                    _categorias.add(newCategory);
-                    _categoriaController.text = newCategory;
-                  });
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Categoria "$newCategory" adicionada com sucesso!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
+                await _addNewCategory(newCategoryController.text.trim());
               }
             },
             child: const Text('Adicionar'),
@@ -213,6 +221,53 @@ class _AdminAddProductScreenState extends State<AdminAddProductScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _addNewCategory(String categoryName) async {
+    try {
+      // Verificar se a categoria já existe
+      if (_categorias.contains(categoryName)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('A categoria "$categoryName" já existe!'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Salvar no Firebase
+      await FirebaseFirestore.instance.collection('categorias').add({
+        'nome': categoryName,
+        'createdAt': FieldValue.serverTimestamp(),
+        'section': _selectedSection, // 'Loja' ou 'SexyShop'
+      });
+
+      // Atualizar lista local
+      setState(() {
+        _categorias.add(categoryName);
+        _categoriaController.text = categoryName;
+      });
+
+      // Fechar dialog
+      Navigator.pop(context);
+
+      // Mostrar sucesso
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Categoria "$categoryName" adicionada com sucesso!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('❌ Erro ao adicionar categoria: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao adicionar categoria: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _saveProduct() async {
@@ -692,46 +747,54 @@ class _AdminAddProductScreenState extends State<AdminAddProductScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      DropdownButtonFormField<String>(
-                        value: _categoriaController.text.isEmpty ? null : _categoriaController.text,
-                        decoration: const InputDecoration(
-                          labelText: 'Categoria *',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: [
-                          ..._categorias.map((categoria) {
-                            return DropdownMenuItem(
-                              value: categoria,
-                              child: Text(categoria),
-                            );
-                          }).toList(),
-                          const DropdownMenuItem(
-                            value: 'nova_categoria',
-                            child: Row(
-                              children: [
-                                Icon(Icons.add, color: Colors.blue),
-                                SizedBox(width: 8),
-                                Text('Adicionar nova categoria...'),
-                              ],
-                            ),
+                      if (_isLoadingCategories)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: CircularProgressIndicator(),
                           ),
-                        ],
-                        onChanged: (value) {
-                          if (value == 'nova_categoria') {
-                            _showAddCategoryDialog();
-                          } else {
-                            setState(() {
-                              _categoriaController.text = value ?? '';
-                            });
-                          }
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Selecione uma categoria';
-                          }
-                          return null;
-                        },
-                      ),
+                        )
+                      else
+                        DropdownButtonFormField<String>(
+                          value: _categoriaController.text.isEmpty ? null : _categoriaController.text,
+                          decoration: const InputDecoration(
+                            labelText: 'Categoria *',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            ..._categorias.map((categoria) {
+                              return DropdownMenuItem(
+                                value: categoria,
+                                child: Text(categoria),
+                              );
+                            }).toList(),
+                            const DropdownMenuItem(
+                              value: 'nova_categoria',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.add, color: Colors.blue),
+                                  SizedBox(width: 8),
+                                  Text('Adicionar nova categoria...'),
+                                ],
+                              ),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value == 'nova_categoria') {
+                              _showAddCategoryDialog();
+                            } else {
+                              setState(() {
+                                _categoriaController.text = value ?? '';
+                              });
+                            }
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Selecione uma categoria';
+                            }
+                            return null;
+                          },
+                        ),
                     ],
                   ),
                 ),

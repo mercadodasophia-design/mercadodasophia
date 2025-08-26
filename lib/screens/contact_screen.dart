@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 
 class ContactScreen extends StatefulWidget {
@@ -57,7 +59,7 @@ class _ContactScreenState extends State<ContactScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pushReplacementNamed(context, '/products'),
+          onPressed: () => context.go('/produtos'),
         ),
       ),
       body: SingleChildScrollView(
@@ -561,34 +563,73 @@ class _ContactScreenState extends State<ContactScreen> {
     );
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      // Simular envio do formulário
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Mensagem Enviada'),
-          content: const Text(
-            'Obrigado pelo contato! Retornaremos em breve.',
+      try {
+        // Mostrar loading
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // Limpar formulário
-                _nameController.clear();
-                _emailController.clear();
-                _phoneController.clear();
-                _messageController.clear();
-                setState(() {
-                  _selectedSubject = 'Dúvida Geral';
-                });
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+        );
+
+        // Salvar no Firebase
+        await FirebaseFirestore.instance.collection('contact_messages').add({
+          'name': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'phone': _phoneController.text.trim(),
+          'subject': _selectedSubject,
+          'message': _messageController.text.trim(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'status': 'new',
+        });
+
+        // Fechar loading
+        Navigator.of(context).pop();
+
+        // Sucesso
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Mensagem Enviada'),
+            content: const Text('Obrigado pelo contato! Retornaremos em breve.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // Limpar formulário
+                  _nameController.clear();
+                  _emailController.clear();
+                  _phoneController.clear();
+                  _messageController.clear();
+                  setState(() {
+                    _selectedSubject = 'Dúvida Geral';
+                  });
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      } catch (e) {
+        print('❌ Erro ao enviar mensagem: $e');
+        
+        // Fechar loading se ainda estiver aberto
+        if (Navigator.canPop(context)) {
+          Navigator.of(context).pop();
+        }
+        
+        // Mostrar erro
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -598,7 +639,7 @@ class _ContactScreenState extends State<ContactScreen> {
       selected: false,
       onSelected: (selected) {
         // Navegar para produtos com categoria selecionada
-        Navigator.pushReplacementNamed(context, '/products');
+        context.go('/produtos');
       },
     );
   }
