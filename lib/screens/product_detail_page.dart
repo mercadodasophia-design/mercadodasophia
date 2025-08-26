@@ -7,6 +7,7 @@ import '../models/product_model.dart';
 import '../services/auth_service.dart';
 
 import '../providers/cart_provider.dart';
+import '../providers/profit_margin_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/product_variations_widget.dart';
 import '../widgets/cart_badge.dart';
@@ -93,10 +94,51 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: _buildAppBar(),
-      body: kIsWeb ? _buildWebLayout() : _buildMobileLayout(),
+    return Consumer<ProfitMarginProvider>(
+      builder: (context, profitMarginProvider, child) {
+        // Aplicar margem no produto se o provider estiver pronto
+        Product displayProduct = widget.product;
+        if (profitMarginProvider.isReady) {
+          final basePrice = widget.product.preco;
+          final finalPrice = profitMarginProvider.calculateFinalPrice(basePrice, widget.product.id ?? '');
+          
+          displayProduct = Product(
+            id: widget.product.id,
+            aliexpressId: widget.product.aliexpressId,
+            images: widget.product.images,
+            titulo: widget.product.titulo,
+            variacoes: widget.product.variacoes,
+            descricao: widget.product.descricao,
+            preco: finalPrice,
+            oferta: widget.product.oferta,
+            descontoPercentual: widget.product.descontoPercentual,
+            marca: widget.product.marca,
+            tipo: widget.product.tipo,
+            origem: widget.product.origem,
+            categoria: widget.product.categoria,
+            dataPost: widget.product.dataPost,
+            idAdmin: widget.product.idAdmin,
+            envio: widget.product.envio,
+            secao: widget.product.secao,
+            isAvailable: widget.product.isAvailable,
+            rating: widget.product.rating,
+            reviewCount: widget.product.reviewCount,
+            weight: widget.product.weight,
+            length: widget.product.length,
+            height: widget.product.height,
+            width: widget.product.width,
+            diameter: widget.product.diameter,
+            formato: widget.product.formato,
+            freightInfo: widget.product.freightInfo,
+          );
+        }
+        
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: _buildAppBar(),
+          body: kIsWeb ? _buildWebLayout() : _buildMobileLayout(),
+        );
+      },
     );
   }
 

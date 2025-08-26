@@ -7,6 +7,8 @@ import '../services/product_service.dart';
 import '../services/banner_service.dart';
 import '../widgets/product_card_web.dart';
 import '../widgets/friendly_router.dart';
+import '../providers/profit_margin_provider.dart';
+import 'package:provider/provider.dart';
 
 class SexyShopScreen extends StatefulWidget {
   const SexyShopScreen({Key? key}) : super(key: key);
@@ -76,6 +78,10 @@ class _SexyShopScreenState extends State<SexyShopScreen> {
     }
 
     try {
+      // Aguardar carregamento das margens antes de carregar produtos
+      final profitMarginProvider = Provider.of<ProfitMarginProvider>(context, listen: false);
+      await profitMarginProvider.loadMargins();
+      
       // Buscar produtos da seção SexyShop usando ProductService
       final loadedProducts = await ProductService.getSexyShopProducts();
       
@@ -158,7 +164,53 @@ class _SexyShopScreenState extends State<SexyShopScreen> {
   }
 
   void _filterProducts() {
-    List<Product> filtered = List.from(_products);
+    final profitMarginProvider = Provider.of<ProfitMarginProvider>(context, listen: false);
+    
+    List<Product> productsToFilter;
+    
+    // Aplicar margens apenas se o provider estiver pronto
+    if (profitMarginProvider.isReady) {
+      productsToFilter = _products.map((product) {
+        final basePrice = product.preco;
+        final finalPrice = profitMarginProvider.calculateFinalPrice(basePrice, product.id ?? '');
+        
+        // Criar novo produto com preço atualizado
+        return Product(
+          id: product.id,
+          aliexpressId: product.aliexpressId,
+          images: product.images,
+          titulo: product.titulo,
+          variacoes: product.variacoes,
+          descricao: product.descricao,
+          preco: finalPrice,
+          oferta: product.oferta,
+          descontoPercentual: product.descontoPercentual,
+          marca: product.marca,
+          tipo: product.tipo,
+          origem: product.origem,
+          categoria: product.categoria,
+          dataPost: product.dataPost,
+          idAdmin: product.idAdmin,
+          envio: product.envio,
+          secao: product.secao,
+          isAvailable: product.isAvailable,
+          rating: product.rating,
+          reviewCount: product.reviewCount,
+          weight: product.weight,
+          length: product.length,
+          height: product.height,
+          width: product.width,
+          diameter: product.diameter,
+          formato: product.formato,
+          freightInfo: product.freightInfo,
+        );
+      }).toList();
+    } else {
+      // Se não está pronto, usar produtos originais
+      productsToFilter = _products;
+    }
+    
+    List<Product> filtered = List.from(productsToFilter);
     
     // Filtrar por categoria
     if (_selectedCategory != 'Todos') {

@@ -28,6 +28,7 @@ import 'services/firebase_product_service.dart';
 import 'providers/location_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/address_provider.dart';
+import 'providers/profit_margin_provider.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -250,6 +251,9 @@ class MercadoDaSophiaApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<AddressProvider>(
           create: (_) => AddressProvider(),
+        ),
+        ChangeNotifierProvider<ProfitMarginProvider>(
+          create: (_) => ProfitMarginProvider(),
         ),
         Provider<FirebaseProductService>(
           create: (_) => FirebaseProductService(),

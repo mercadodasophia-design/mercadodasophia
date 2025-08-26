@@ -12,6 +12,7 @@ import '../services/banner_service.dart';
 import '../models/banner_model.dart' as banner_model;
 
 import '../providers/location_provider.dart';
+import '../providers/profit_margin_provider.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_card_compact.dart';
 import '../widgets/product_card_v2.dart';
@@ -105,6 +106,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
     });
     
     try {
+      // Aguardar carregamento das margens antes de carregar produtos
+      final profitMarginProvider = Provider.of<ProfitMarginProvider>(context, listen: false);
+      await profitMarginProvider.loadMargins();
+      
       final loadedProducts = await ProductService.getProducts();
       setState(() {
         products = loadedProducts;
@@ -189,10 +194,56 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
 
   void _filterProducts() {
-    if (selectedCategory == null || selectedCategory == 'Todos') {
-      filteredProducts = products;
+    final profitMarginProvider = Provider.of<ProfitMarginProvider>(context, listen: false);
+    
+    List<Product> productsToFilter;
+    
+    // Aplicar margens apenas se o provider estiver pronto
+    if (profitMarginProvider.isReady) {
+      productsToFilter = products.map((product) {
+        final basePrice = product.preco;
+        final finalPrice = profitMarginProvider.calculateFinalPrice(basePrice, product.id ?? '');
+        
+        // Criar novo produto com preço atualizado
+        return Product(
+          id: product.id,
+          aliexpressId: product.aliexpressId,
+          images: product.images,
+          titulo: product.titulo,
+          variacoes: product.variacoes,
+          descricao: product.descricao,
+          preco: finalPrice,
+          oferta: product.oferta,
+          descontoPercentual: product.descontoPercentual,
+          marca: product.marca,
+          tipo: product.tipo,
+          origem: product.origem,
+          categoria: product.categoria,
+          dataPost: product.dataPost,
+          idAdmin: product.idAdmin,
+          envio: product.envio,
+          secao: product.secao,
+          isAvailable: product.isAvailable,
+          rating: product.rating,
+          reviewCount: product.reviewCount,
+          weight: product.weight,
+          length: product.length,
+          height: product.height,
+          width: product.width,
+          diameter: product.diameter,
+          formato: product.formato,
+          freightInfo: product.freightInfo,
+        );
+      }).toList();
     } else {
-      filteredProducts = products.where((product) => product.categoria == selectedCategory).toList();
+      // Se não está pronto, usar produtos originais
+      productsToFilter = products;
+    }
+    
+    if (selectedCategory == null || selectedCategory == 'Todos') {
+      filteredProducts = productsToFilter;
+    } else {
+      filteredProducts = productsToFilter.where((product) => product.categoria == selectedCategory).toList();
     }
   }
 
