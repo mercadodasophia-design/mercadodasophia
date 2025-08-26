@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/cart_item.dart';
 import '../models/product_model.dart';
+import '../services/freight_service.dart';
 
 
 class CartProvider with ChangeNotifier {
@@ -55,20 +56,17 @@ class CartProvider with ChangeNotifier {
         notifyListeners();
         return {
           'value': 0.0,
-          'delivery_days': 12,
-          'delivery_date': DateTime.now().add(Duration(days: 12)),
+          'delivery_days': FreightService.getEstimatedDeliveryDays(),
+          'delivery_date': DateTime.now().add(Duration(days: FreightService.getEstimatedDeliveryDays())),
           'cep': cep,
           'available': true,
           'message': 'Carrinho vazio',
         };
       }
 
-      // Verificar se algum produto tem frete gratuito (freteInfo nulo)
+      // Verificar se algum produto tem frete gratuito
       bool hasFreeShipping = _items.any((item) => 
-        item.product.freightInfo == null || 
-        item.product.freightInfo!.isEmpty ||
-        item.product.freightInfo!['value'] == null ||
-        item.product.freightInfo!['value'] == 0.0
+        item.product.hasFreeShipping
       );
 
       if (hasFreeShipping) {
@@ -78,38 +76,40 @@ class CartProvider with ChangeNotifier {
         
         return {
           'value': 0.0,
-          'delivery_days': 12,
-          'delivery_date': DateTime.now().add(Duration(days: 12)),
+          'delivery_days': FreightService.getEstimatedDeliveryDays(),
+          'delivery_date': DateTime.now().add(Duration(days: FreightService.getEstimatedDeliveryDays())),
           'cep': cep,
           'available': true,
           'message': 'Frete Grátis',
         };
       }
 
-      // Se não há frete gratuito, usar o valor do produto com maior frete
-      double maxShippingValue = 0.0;
-      
-      for (final item in _items) {
-        if (item.product.freightInfo != null && 
-            item.product.freightInfo!['value'] != null) {
-          final freightValue = (item.product.freightInfo!['value'] as num).toDouble();
-          if (freightValue > maxShippingValue) {
-            maxShippingValue = freightValue;
-          }
-        }
-      }
+      // Preparar dados dos produtos para cálculo de frete
+      final productsData = _items.map((item) => {
+        'weight': item.product.weight ?? 0.0,
+        'length': item.product.length ?? 0.0,
+        'height': item.product.height ?? 0.0,
+        'width': item.product.width ?? 0.0,
+        'diameter': item.product.diameter ?? 0.0,
+        'formato': item.product.formato ?? 'caixa',
+      }).toList();
 
-      // Atualizar custo do frete
-      _shippingCost = maxShippingValue;
+      // Calcular frete usando o FreightService
+      final freightValue = await FreightService.calculateMultipleProductsFreight(
+        destinationCep: cep,
+        products: productsData,
+      );
+
+      _shippingCost = freightValue;
       notifyListeners();
-
+      
       return {
-        'value': maxShippingValue,
-        'delivery_days': 12,
-        'delivery_date': DateTime.now().add(Duration(days: 12)),
+        'value': freightValue,
+        'delivery_days': FreightService.getEstimatedDeliveryDays(),
+        'delivery_date': DateTime.now().add(Duration(days: FreightService.getEstimatedDeliveryDays())),
         'cep': cep,
         'available': true,
-        'message': 'Frete calculado',
+        'message': freightValue == 20.0 ? 'Frete Padrão' : 'Frete Calculado',
       };
 
     } catch (e) {
@@ -118,8 +118,8 @@ class CartProvider with ChangeNotifier {
       
       return {
         'value': 0.0,
-        'delivery_days': 12,
-        'delivery_date': DateTime.now().add(Duration(days: 12)),
+        'delivery_days': FreightService.getEstimatedDeliveryDays(),
+        'delivery_date': DateTime.now().add(Duration(days: FreightService.getEstimatedDeliveryDays())),
         'cep': cep,
         'available': false,
         'error': 'Erro ao calcular frete: $e',

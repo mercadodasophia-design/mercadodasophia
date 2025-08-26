@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../models/product_model.dart';
 import '../providers/location_provider.dart';
 import '../theme/app_theme.dart';
+import '../services/freight_service.dart';
 
 class ShippingCalculatorWidget extends StatefulWidget {
   final Product product;
@@ -221,15 +222,12 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
     await Future.delayed(const Duration(seconds: 1));
     print('⏱️ Delay concluído, verificando frete...');
 
-    // Verificar se o produto tem frete gratuito (freightInfo nulo)
-    bool hasFreeShipping = widget.product.freightInfo == null || 
-                          widget.product.freightInfo!.isEmpty ||
-                          widget.product.freightInfo!['value'] == null ||
-                          widget.product.freightInfo!['value'] == 0.0;
+    // Verificar se o produto tem frete gratuito
+    bool hasFreeShipping = widget.product.hasFreeShipping;
 
     if (hasFreeShipping) {
       // Frete gratuito
-      print('🚢 Frete Grátis - produto tem freightInfo nulo ou valor zero');
+      print('🚢 Frete Grátis - produto marcado como frete grátis');
       
       final simulatedData = {
         'success': true,
@@ -239,7 +237,7 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
             'service_code': 'FREE_SHIPPING',
             'service_name': 'Frete Grátis',
             'price': 0.0,
-            'estimated_days': 12,
+            'estimated_days': FreightService.getEstimatedDeliveryDays(),
             'carrier': 'Correios',
           },
         ],
@@ -254,60 +252,31 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
       return;
     }
 
-    // Tentar obter o valor do frete do produto importado (em USD)
-    double? shippingPriceUSD;
+    // Calcular frete usando o FreightService
+    print('🚚 Calculando frete usando API dos Correios...');
     
-    // Verificar se o produto tem informações de frete salvas
-    print('🔍 Verificando freightInfo do produto...');
-    print('🔍 freightInfo: ${widget.product.freightInfo}');
-    
-    if (widget.product.freightInfo != null) {
-      try {
-        final freightData = widget.product.freightInfo!;
-        print('🔍 freightData keys: ${freightData.keys.toList()}');
-        
-        // Tentar diferentes formatos de dados de frete
-        if (freightData['value'] != null) {
-          shippingPriceUSD = (freightData['value'] as num).toDouble();
-          print('🔍 preço encontrado em freightData[value]: $shippingPriceUSD');
-        } else if (freightData['freight_options'] != null) {
-          final options = freightData['freight_options'] as List<dynamic>;
-          print('🔍 freight_options encontradas: ${options.length}');
-          
-          if (options.isNotEmpty) {
-            final firstOption = options.first;
-            print('🔍 primeira opção: $firstOption');
-            
-            final price = firstOption['price'];
-            print('🔍 preço extraído: $price (tipo: ${price.runtimeType})');
-            
-            if (price != null) {
-              shippingPriceUSD = double.tryParse(price.toString()) ?? 0.67;
-              print('🔍 preço convertido para USD: $shippingPriceUSD');
-            }
-          }
-        } else {
-          print('⚠️ Nenhum formato de frete encontrado no freightData');
-        }
-      } catch (e) {
-        print('❌ Erro ao extrair preço do frete: $e');
-      }
-    } else {
-      print('⚠️ freightInfo é null');
-    }
-
-    // Se não temos valor de frete, usar frete gratuito
-    if (shippingPriceUSD == null) {
-      print('❌ Não há valor de frete disponível - aplicando frete gratuito');
+    try {
+      final freightValue = await FreightService.calculateFreight(
+        destinationCep: cep,
+        weight: widget.product.weight ?? 0.0,
+        length: widget.product.length ?? 0.0,
+        height: widget.product.height ?? 0.0,
+        width: widget.product.width ?? 0.0,
+        diameter: widget.product.diameter,
+        formato: widget.product.formato,
+      );
+      
+      print('✅ Frete calculado: R\$ ${freightValue.toStringAsFixed(2)}');
+      
       final simulatedData = {
         'success': true,
         'address': realAddress,
         'shipping': [
           {
-            'service_code': 'FREE_SHIPPING',
-            'service_name': 'Frete Grátis',
-            'price': 0.0,
-            'estimated_days': 12,
+            'service_code': 'PAC',
+            'service_name': freightValue == 20.0 ? 'Frete Padrão' : 'Frete Calculado',
+            'price': freightValue,
+            'estimated_days': FreightService.getEstimatedDeliveryDays(),
             'carrier': 'Correios',
           },
         ],
@@ -316,10 +285,34 @@ class _ShippingCalculatorWidgetState extends State<ShippingCalculatorWidget> {
       setState(() {
         _isLoading = false;
         _shippingData = simulatedData;
-        _selectedService = 'FREE_SHIPPING';
-        widget.onShippingSelected(0.0);
+        _selectedService = 'PAC';
+        widget.onShippingSelected(freightValue);
       });
-      return;
+      
+    } catch (e) {
+      print('❌ Erro ao calcular frete: $e');
+      
+      // Em caso de erro, usar frete padrão
+      final simulatedData = {
+        'success': true,
+        'address': realAddress,
+        'shipping': [
+          {
+            'service_code': 'DEFAULT',
+            'service_name': 'Frete Padrão',
+            'price': 20.0,
+            'estimated_days': FreightService.getEstimatedDeliveryDays(),
+            'carrier': 'Correios',
+          },
+        ],
+      };
+
+      setState(() {
+        _isLoading = false;
+        _shippingData = simulatedData;
+        _selectedService = 'DEFAULT';
+        widget.onShippingSelected(20.0);
+      });
     }
 
     // Buscar cotação atual do dólar e converter para BRL

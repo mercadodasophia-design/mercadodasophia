@@ -84,6 +84,8 @@ class Product {
   final double? length;
   final double? height;
   final double? width;
+  final double? diameter; // Diâmetro para produtos cilíndricos
+  final String? formato; // 'caixa' ou 'pacote'
   final Map<String, dynamic>? freightInfo;
 
   Product({
@@ -111,6 +113,8 @@ class Product {
     this.length,
     this.height,
     this.width,
+    this.diameter,
+    this.formato,
     this.freightInfo,
   });
 
@@ -196,6 +200,8 @@ class Product {
       'length': length,
       'height': height,
       'width': width,
+      'diameter': diameter,
+      'formato': formato,
       'freightInfo': freightInfo,
     };
   }
@@ -228,6 +234,8 @@ class Product {
       length: map['length']?.toDouble(),
       height: map['height']?.toDouble(),
       width: map['width']?.toDouble(),
+      diameter: map['diameter']?.toDouble(),
+      formato: map['formato'],
       freightInfo: map['freightInfo'] as Map<String, dynamic>?,
     );
   }

@@ -30,6 +30,14 @@ class _AdminAddProductScreenState extends State<AdminAddProductScreen> {
   final _aliexpressIdController = TextEditingController();
   final _envioController = TextEditingController();
   
+  // Controllers para campos de frete
+  final _pesoController = TextEditingController();
+  final _comprimentoController = TextEditingController();
+  final _alturaController = TextEditingController();
+  final _larguraController = TextEditingController();
+  final _diametroController = TextEditingController();
+  String _selectedFormato = 'caixa'; // 'caixa' ou 'pacote'
+  
   // Lista de imagens
   List<String> _images = [];
   List<dynamic> _imageFiles = []; // Para compatibilidade Web/Mobile
@@ -64,6 +72,13 @@ class _AdminAddProductScreenState extends State<AdminAddProductScreen> {
     _categoriaController.dispose();
     _aliexpressIdController.dispose();
     _envioController.dispose();
+    
+    // Dispose dos controllers de frete
+    _pesoController.dispose();
+    _comprimentoController.dispose();
+    _alturaController.dispose();
+    _larguraController.dispose();
+    _diametroController.dispose();
     super.dispose();
   }
 
@@ -322,6 +337,13 @@ class _AdminAddProductScreenState extends State<AdminAddProductScreen> {
         idAdmin: user.uid,
         envio: _envioController.text.trim().isEmpty ? null : _envioController.text.trim(),
         secao: _selectedSection, // Adicionar seção
+        // Campos de frete
+        weight: double.tryParse(_pesoController.text.trim()),
+        length: double.tryParse(_comprimentoController.text.trim()),
+        height: double.tryParse(_alturaController.text.trim()),
+        width: double.tryParse(_larguraController.text.trim()),
+        diameter: _diametroController.text.trim().isEmpty ? null : double.tryParse(_diametroController.text.trim()),
+        formato: _selectedFormato,
       );
 
       // Salvar no Firebase
@@ -808,6 +830,163 @@ class _AdminAddProductScreenState extends State<AdminAddProductScreen> {
                 labelText: 'Tipo de Envio (opcional)',
                 border: OutlineInputBorder(),
                 hintText: 'Ex: entrega grátis, pago',
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Seção de Dimensões para Frete
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Dimensões para Cálculo de Frete',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Peso e Formato
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _pesoController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Peso (kg) *',
+                              border: OutlineInputBorder(),
+                              hintText: 'Ex: 1.5',
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Digite o peso';
+                              }
+                              final peso = double.tryParse(value);
+                              if (peso == null || peso <= 0) {
+                                return 'Peso deve ser um número positivo';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedFormato,
+                            decoration: const InputDecoration(
+                              labelText: 'Formato *',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'caixa',
+                                child: Text('Caixa'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'pacote',
+                                child: Text('Pacote'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedFormato = value ?? 'caixa';
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Dimensões
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _comprimentoController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Comprimento (cm) *',
+                              border: OutlineInputBorder(),
+                              hintText: 'Ex: 20',
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Digite o comprimento';
+                              }
+                              final comp = double.tryParse(value);
+                              if (comp == null || comp <= 0) {
+                                return 'Comprimento deve ser positivo';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _alturaController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Altura (cm) *',
+                              border: OutlineInputBorder(),
+                              hintText: 'Ex: 15',
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Digite a altura';
+                              }
+                              final alt = double.tryParse(value);
+                              if (alt == null || alt <= 0) {
+                                return 'Altura deve ser positiva';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _larguraController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Largura (cm) *',
+                              border: OutlineInputBorder(),
+                              hintText: 'Ex: 10',
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Digite a largura';
+                              }
+                              final larg = double.tryParse(value);
+                              if (larg == null || larg <= 0) {
+                                return 'Largura deve ser positiva';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Diâmetro (opcional)
+                    TextFormField(
+                      controller: _diametroController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Diâmetro (cm) - Opcional',
+                        border: OutlineInputBorder(),
+                        hintText: 'Ex: 5 (para produtos cilíndricos)',
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 16),

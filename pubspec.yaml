@@ -92,6 +92,9 @@ dependencies:
   # Path utilities
   path: ^1.8.3
   go_router: ^16.2.0
+  
+  # XML parsing for freight calculation
+  xml: ^6.5.0
 
 dev_dependencies:
   flutter_test:
