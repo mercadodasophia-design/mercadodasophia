@@ -290,6 +290,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   },
                 ),
                 _buildDrawerItem(
+                  icon: Icons.attach_money,
+                  title: 'Financeiro',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/admin/financial');
+                  },
+                ),
+                _buildDrawerItem(
                   icon: Icons.settings,
                   title: 'Configurações',
                   onTap: () {
