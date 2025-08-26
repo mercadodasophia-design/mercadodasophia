@@ -716,6 +716,20 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
+                          // Botão para ver produtos
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: () => _viewOrderItems(order),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppTheme.primaryColor,
+                                side: BorderSide(color: AppTheme.primaryColor),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: const Text('Ver Produtos'),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           // Botão para cancelar pedido
                           SizedBox(
                             width: double.infinity,
@@ -1092,66 +1106,200 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           if (mounted) {
             showDialog(
               context: context,
-              builder: (context) => AlertDialog(
-                title: Text('Produtos do Pedido ${order.id}'),
-                content: SizedBox(
-                  width: double.maxFinite,
+              builder: (context) => Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.9,
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.8,
+                  ),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      ...items.map((item) => Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: item['imageUrl'] != null
-                              ? Image.network(
-                                  item['imageUrl'],
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.image),
-                                )
-                              : const Icon(Icons.image),
-                          title: Text(item['title'] ?? item['name'] ?? 'Produto'),
-                          subtitle: Text('Quantidade: ${item['quantity']}'),
-                          trailing: Text(
-                            'R\$ ${(item['price'] ?? 0.0).toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryColor,
-                            ),
+                      // Header
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: const BoxDecoration(
+                          gradient: AppTheme.primaryGradient,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
                           ),
                         ),
-                      )).toList(),
-                      const Divider(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Total:',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.shopping_bag,
+                              color: Colors.white,
+                              size: 24,
                             ),
-                          ),
-                          Text(
-                            'R\$ ${(result['total'] ?? 0.0).toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryColor,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Produtos do Pedido',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    order.id,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                            IconButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(Icons.close, color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Lista de produtos
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              ...items.map((item) => Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    children: [
+                                      // Imagem do produto
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: (item['imageUrl'] != null || item['image'] != null || (item['variation']?['image'] != null))
+                                            ? Image.network(
+                                                item['imageUrl'] ?? item['image'] ?? item['variation']?['image'] ?? '',
+                                                width: 60,
+                                                height: 60,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) => Container(
+                                                  width: 60,
+                                                  height: 60,
+                                                  color: Colors.grey[300],
+                                                  child: const Icon(Icons.image, color: Colors.grey),
+                                                ),
+                                              )
+                                            : Container(
+                                                width: 60,
+                                                height: 60,
+                                                color: Colors.grey[300],
+                                                child: const Icon(Icons.image, color: Colors.grey),
+                                              ),
+                                      ),
+                                      
+                                      const SizedBox(width: 12),
+                                      
+                                      // Informações do produto
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item['title']?.isNotEmpty == true 
+                                                  ? item['title'] 
+                                                  : item['name']?.isNotEmpty == true 
+                                                      ? item['name'] 
+                                                      : 'Produto ${item['id'] ?? ''}',
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Quantidade: ${item['quantity']}',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Preço unitário: R\$ ${(item['unit_price'] ?? item['price'] ?? 0.0).toStringAsFixed(2)}',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      
+                                      // Preço total do item
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            'R\$ ${(item['total_price'] ?? ((item['unit_price'] ?? item['price'] ?? 0.0) * (item['quantity'] ?? 1))).toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppTheme.primaryColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )).toList(),
+                              
+                              const SizedBox(height: 20),
+                              
+                              // Total do pedido
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Total do Pedido:',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      'R\$ ${(result['total'] ?? 0.0).toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Fechar'),
-                  ),
-                ],
               ),
             );
           }

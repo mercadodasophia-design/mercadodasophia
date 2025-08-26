@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:provider/provider.dart';
@@ -57,6 +58,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
   int _currentBannerIndex = 0;
   List<banner_model.Banner> _banners = [];
   bool _isLoadingBanners = true;
+  late PageController _pageController;
+  Timer? _bannerTimer;
   
 
 
@@ -74,6 +77,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     //   _searchQuery = widget.initialSearch;
     // }
     
+    _pageController = PageController();
     _loadProducts();
     _loadCategories();
     _loadBanners();
@@ -142,12 +146,43 @@ class _ProductsScreenState extends State<ProductsScreen> {
         _banners = banners;
         _isLoadingBanners = false;
       });
+      
+      // Iniciar timer automático se há mais de 1 banner
+      if (_banners.length > 1) {
+        _startBannerTimer();
+      }
     } catch (e) {
       print('Erro ao carregar banners: $e');
       setState(() {
         _banners = [];
         _isLoadingBanners = false;
       });
+    }
+  }
+
+  void _startBannerTimer() {
+    _stopBannerTimer(); // Parar timer anterior se existir
+    _bannerTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (_banners.length > 1) {
+        final nextIndex = (_currentBannerIndex + 1) % _banners.length;
+        _pageController.animateToPage(
+          nextIndex,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  void _stopBannerTimer() {
+    _bannerTimer?.cancel();
+    _bannerTimer = null;
+  }
+
+  void _resetBannerTimer() {
+    _stopBannerTimer();
+    if (_banners.length > 1) {
+      _startBannerTimer();
     }
   }
 
@@ -159,6 +194,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
     } else {
       filteredProducts = products.where((product) => product.categoria == selectedCategory).toList();
     }
+  }
+
+  @override
+  void dispose() {
+    _stopBannerTimer();
+    _pageController.dispose();
+    super.dispose();
   }
 
   @override
@@ -1064,38 +1106,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             
                             const Divider(height: 30),
                             
-                            // Seção de Navegação Principal
-                            _buildDrawerSection(
-                              'Navegação',
-                              [
-                                _buildDrawerItem('Início', Icons.home, () {
-                                  Navigator.pop(context);
-                                }),
-                                _buildDrawerItem('Minhas Compras', Icons.shopping_bag, () {
-                                  Navigator.pop(context);
-                                  context.go('/meus-pedidos');
-                                }),
-                                _buildDrawerItem('Favoritos', Icons.favorite, () {
-                                  Navigator.pop(context);
-                                  context.go('/favoritos');
-                                }),
-                                _buildDrawerItem('Ofertas', Icons.local_offer, () {
-                                  Navigator.pop(context);
-                                  context.go('/ofertas');
-                                }),
-                                _buildDrawerItem('Cupons', Icons.card_giftcard, () {
-                                  Navigator.pop(context);
-                                  context.go('/cupons');
-                                }),
-                                _buildDrawerItem('Minha Conta', Icons.person, () {
-                                  Navigator.pop(context);
-                                  context.go('/minha-conta');
-                                }),
-                              ],
-                            ),
-                            
-                            const Divider(height: 30),
-                            
                             // Seção SexyShop - Destaque Especial
                             Container(
                               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1662,6 +1672,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         children: [
                       // PageView para os slides
             PageView.builder(
+              controller: _pageController,
               itemCount: _banners.isNotEmpty ? _banners.length : 0,
             onPageChanged: (index) {
               setState(() {
@@ -1700,11 +1711,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     size: 24,
                   ),
                   onPressed: () {
-                    setState(() {
-                                  final totalBanners = _banners.isNotEmpty ? _banners.length : 3;
-            _currentBannerIndex = (_currentBannerIndex - 1) % totalBanners;
-            if (_currentBannerIndex < 0) _currentBannerIndex = totalBanners - 1;
-                    });
+                    if (_banners.isNotEmpty) {
+                      final newIndex = (_currentBannerIndex - 1) % _banners.length;
+                      final targetIndex = newIndex < 0 ? _banners.length - 1 : newIndex;
+                      _pageController.animateToPage(
+                        targetIndex,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                      _resetBannerTimer(); // Resetar timer quando usuário interage
+                    }
                   },
                   padding: EdgeInsets.zero,
                 ),
@@ -1738,10 +1754,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     size: 24,
                   ),
                   onPressed: () {
-                    setState(() {
-                      final totalBanners = _banners.isNotEmpty ? _banners.length : 3;
-            _currentBannerIndex = (_currentBannerIndex + 1) % totalBanners;
-                    });
+                    if (_banners.isNotEmpty) {
+                      final targetIndex = (_currentBannerIndex + 1) % _banners.length;
+                      _pageController.animateToPage(
+                        targetIndex,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                      _resetBannerTimer(); // Resetar timer quando usuário interage
+                    }
                   },
                   padding: EdgeInsets.zero,
                 ),
@@ -1759,9 +1780,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
               children: List.generate(_banners.isNotEmpty ? _banners.length : 3, (index) {
                 return GestureDetector(
                   onTap: () {
-                    setState(() {
-                      _currentBannerIndex = index;
-                    });
+                    _pageController.animateToPage(
+                      index,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                    _resetBannerTimer(); // Resetar timer quando usuário interage
                   },
                   child: Container(
                     width: 12,
