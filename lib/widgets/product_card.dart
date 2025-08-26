@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/product_model.dart';
+import '../providers/profit_margin_provider.dart';
 
 /// ProductCard com layout otimizado para evitar overflow
 /// 
@@ -127,58 +129,67 @@ class ProductCard extends StatelessWidget {
                     
                     const SizedBox(height: 4),
                     
-                    // Preço
-                    if (product.descontoPercentual != null && product.descontoPercentual! > 0)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Preço original riscado
-                          Text(
-                            'R\$ ${(product.preco ?? 0.0).toStringAsFixed(2)}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              decoration: TextDecoration.lineThrough,
-                              decorationColor: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          // Preço com desconto
-                          Row(
+                    // Preço com margem aplicada
+                    Consumer<ProfitMarginProvider>(
+                      builder: (context, marginProvider, child) {
+                        final displayPrice = marginProvider.isReady 
+                            ? marginProvider.calculateFinalPrice(product.preco ?? 0.0, product.id ?? '')
+                            : (product.preco ?? 0.0);
+                        
+                        if (product.descontoPercentual != null && product.descontoPercentual! > 0) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Preço original riscado
                               Text(
-                                'R\$ ${((product.preco ?? 0.0) * (1 - (product.descontoPercentual! / 100))).toStringAsFixed(2)}',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  color: const Color(0xFFFF6B9D),
-                                  fontWeight: FontWeight.bold,
+                                'R\$ ${displayPrice.toStringAsFixed(2)}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  decoration: TextDecoration.lineThrough,
+                                  decorationColor: Colors.grey[600],
                                 ),
                               ),
-                              const SizedBox(width: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFF6B9D),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  '-${product.descontoPercentual!.toStringAsFixed(0)}%',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
+                              const SizedBox(height: 2),
+                              // Preço com desconto
+                              Row(
+                                children: [
+                                  Text(
+                                    'R\$ ${(displayPrice * (1 - (product.descontoPercentual! / 100))).toStringAsFixed(2)}',
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      color: const Color(0xFFFF6B9D),
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFF6B9D),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '-${product.descontoPercentual!.toStringAsFixed(0)}%',
+                                      style: theme.textTheme.labelSmall?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                        ],
-                      )
-                    else
-                      // Preço normal sem desconto
-                      Text(
-                        'R\$ ${(product.preco ?? 0.0).toStringAsFixed(2)}',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: const Color(0xFFFF6B9D),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                          );
+                        } else {
+                          // Preço normal sem desconto
+                          return Text(
+                            'R\$ ${displayPrice.toStringAsFixed(2)}',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: const Color(0xFFFF6B9D),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        }
+                      },
+                    ),
                   ],
                 ),
               ),
