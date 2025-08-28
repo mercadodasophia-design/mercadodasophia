@@ -851,25 +851,28 @@ class AliExpressService {
   /// Busca dados de um produto pelo link do AliExpress
   static Future<Map<String, dynamic>?> getProductDataByLink(String productLink) async {
     try {
-      final response = await http.post(
-        Uri.parse('https://service-api-aliexpress.mercadodasophia.com.br/test-product'),
+      print('🔍 Buscando produto por link: $productLink');
+      
+      // Usar a rota que já funciona
+      final response = await http.get(
+        Uri.parse('https://service-api-aliexpress.mercadodasophia.com.br/api/aliexpress/product-ds/url?url=${Uri.encodeComponent(productLink)}'),
         headers: {
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'product_url': productLink,
-        }),
       ).timeout(const Duration(seconds: 30));
 
+      print('📡 Resposta da API: ${response.statusCode}');
+      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print('✅ Produto encontrado com sucesso');
         return data;
       } else {
-        print('Erro ao buscar produto: ${response.statusCode}');
+        print('❌ Erro ao buscar produto: ${response.statusCode} - ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Erro ao buscar produto: $e');
+      print('❌ Erro ao buscar produto: $e');
       return null;
     }
   }
