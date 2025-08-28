@@ -34,8 +34,6 @@ class ProfitMarginProvider with ChangeNotifier {
       setState(() {
         _isLoading = false;
       });
-
-      print('✅ Margens carregadas: Geral ${_generalMargin.toStringAsFixed(1)}%, ${_productMargins.length} específicas');
     } catch (e) {
       setState(() {
         _error = 'Erro ao carregar margens: $e';
@@ -62,12 +60,6 @@ class ProfitMarginProvider with ChangeNotifier {
     
     final margin = getProductMargin(productId);
     final finalPrice = ProfitMarginService.calculateFinalPrice(basePrice, margin);
-    
-    // Debug: imprimir informações de cálculo
-    print('🔍 Debug Margem - Produto: $productId');
-    print('   Preço base: R\$ ${basePrice.toStringAsFixed(2)}');
-    print('   Margem aplicada: ${margin.toStringAsFixed(1)}%');
-    print('   Preço final: R\$ ${finalPrice.toStringAsFixed(2)}');
     
     return finalPrice;
   }

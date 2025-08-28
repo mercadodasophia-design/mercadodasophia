@@ -773,4 +773,129 @@ class AliExpressService {
       throw Exception('Get complete feeds failed: $e');
     }
   }
+
+  // ===================== NOVOS MÉTODOS PARA PAINEL ADMIN =====================
+
+  // Obter feeds para o painel admin (formato otimizado)
+  Future<Map<String, dynamic>> getAdminFeeds() async {
+    try {
+      print('📋 ADMIN: Getting feeds for admin panel...');
+      
+      final response = await http.get(
+        Uri.parse('https://service-api-aliexpress.mercadodasophia.com.br/api/admin/feeds/list'),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          print('✅ ADMIN: Feeds loaded successfully');
+          return data;
+        } else {
+          print('❌ ADMIN API Error: ${data['message']}');
+          throw Exception('API returned error: ${data['message']}');
+        }
+      } else {
+        print('❌ ADMIN API Error: ${response.statusCode}');
+        throw Exception('HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ ADMIN Get feeds error: $e');
+      throw Exception('Get admin feeds failed: $e');
+    }
+  }
+
+  // Obter produtos de um feed específico para o painel admin (paginado)
+  Future<Map<String, dynamic>> getAdminFeedProducts(String feedName, {
+    int page = 1,
+    int pageSize = 10,
+    int retryCount = 0,
+  }) async {
+    const maxRetries = 2;
+    
+    try {
+      print('📦 ADMIN: Getting products from feed: $feedName (page: $page, pageSize: $pageSize, retry: $retryCount)');
+      
+      final response = await http.get(
+        Uri.parse('https://service-api-aliexpress.mercadodasophia.com.br/api/admin/feeds/$feedName/products?page=$page&page_size=$pageSize'),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 90)); // Aumentado para 90 segundos
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          print('✅ ADMIN: Found ${data['data']['products']?.length ?? 0} products in feed');
+          return data;
+        } else {
+          print('❌ ADMIN API Error: ${data['message']}');
+          throw Exception('API returned error: ${data['message']}');
+        }
+      } else {
+        print('❌ ADMIN API Error: ${response.statusCode}');
+        throw Exception('HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ ADMIN Get feed products error: $e');
+      
+      // Retry automático em caso de timeout
+      if (e.toString().contains('TimeoutException') && retryCount < maxRetries) {
+        print('🔄 ADMIN: Retrying... (${retryCount + 1}/$maxRetries)');
+        await Future.delayed(Duration(seconds: (retryCount + 1) * 2)); // Delay progressivo
+        return getAdminFeedProducts(feedName, page: page, pageSize: pageSize, retryCount: retryCount + 1);
+      }
+      
+      throw Exception('Get admin feed products failed: $e');
+    }
+  }
+
+  /// Busca dados de um produto pelo link do AliExpress
+  static Future<Map<String, dynamic>?> getProductDataByLink(String productLink) async {
+    try {
+      final response = await http.post(
+        Uri.parse('https://service-api-aliexpress.mercadodasophia.com.br/test-product'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'product_url': productLink,
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        print('Erro ao buscar produto: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Erro ao buscar produto: $e');
+      return null;
+    }
+  }
+
+  /// Extrai o ID do produto de um link do AliExpress
+  static String? extractProductId(String productLink) {
+    try {
+      // Padrões comuns de links do AliExpress
+      final patterns = [
+        RegExp(r'/item/(\d+)\.html'),
+        RegExp(r'/item/(\d+)'),
+        RegExp(r'product_id=(\d+)'),
+        RegExp(r'itemId=(\d+)'),
+        RegExp(r'(\d{10,})'), // ID do produto geralmente tem 10+ dígitos
+      ];
+
+      for (final pattern in patterns) {
+        final match = pattern.firstMatch(productLink);
+        if (match != null && match.groupCount >= 1) {
+          return match.group(1);
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Erro ao extrair ID do produto: $e');
+      return null;
+    }
+  }
 } 

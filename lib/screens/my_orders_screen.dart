@@ -745,32 +745,32 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                           ),
                         ] else ...[
                           // Botões para outros status
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
                                   onPressed: () => _viewOrderItems(order),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: AppTheme.primaryColor,
-                                    side: BorderSide(color: AppTheme.primaryColor),
-                                  ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.primaryColor,
+                              side: BorderSide(color: AppTheme.primaryColor),
+                            ),
                                   child: const Text('Ver Produtos'),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    // TODO: Implementar rastreamento
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.primaryColor,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  child: const Text('Rastrear'),
-                                ),
-                              ),
-                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              // TODO: Implementar rastreamento
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Rastrear'),
+                          ),
+                        ),
+                      ],
                           ),
                           if (order.status == 'confirmed' || order.status == 'processing') ...[
                             const SizedBox(height: 8),

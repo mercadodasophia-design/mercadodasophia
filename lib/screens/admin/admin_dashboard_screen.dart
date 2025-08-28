@@ -193,6 +193,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   },
                 ),
                 _buildDrawerItem(
+                  icon: Icons.language,
+                  title: 'AliExpress DS',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/admin/aliexpress-ds');
+                  },
+                ),
+                _buildDrawerItem(
                   icon: Icons.download,
                   title: 'Produtos Importados',
                   onTap: () {

@@ -13,6 +13,7 @@ import '../models/banner_model.dart' as banner_model;
 
 import '../providers/location_provider.dart';
 import '../providers/profit_margin_provider.dart';
+import '../providers/screen_state_provider.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_card_compact.dart';
 import '../widgets/product_card_v2.dart';
@@ -53,6 +54,11 @@ class _ProductsScreenState extends State<ProductsScreen> with AutomaticKeepAlive
   String? selectedCategory;
   List<Product> filteredProducts = [];
   bool isLoading = true;
+  bool _isInitialized = false;
+  bool _isLoadingMore = false;
+  bool _hasMoreProducts = true;
+  int _currentPage = 1;
+  final int _productsPerPage = 20;
   List<String> categories = [];
   
   // Controle do banner promocional
@@ -64,7 +70,7 @@ class _ProductsScreenState extends State<ProductsScreen> with AutomaticKeepAlive
   
   // Controle de rolagem para manter posição
   late ScrollController _scrollController;
-  double _savedScrollPosition = 0.0;
+    double _savedScrollPosition = 0.0;
 
   @override
   bool get wantKeepAlive => true;
@@ -90,6 +96,8 @@ class _ProductsScreenState extends State<ProductsScreen> with AutomaticKeepAlive
     
     // Adicionar listener para salvar posição de rolagem
     _scrollController.addListener(_saveScrollPosition);
+    // Adicionar listener para paginação
+    _scrollController.addListener(_onScroll);
     
     _loadProducts();
     _loadCategories();
@@ -101,17 +109,66 @@ class _ProductsScreenState extends State<ProductsScreen> with AutomaticKeepAlive
   void _saveScrollPosition() {
     if (_scrollController.hasClients) {
       _savedScrollPosition = _scrollController.offset;
+      // Salvar no provider global
+      final screenStateProvider = Provider.of<ScreenStateProvider>(context, listen: false);
+      screenStateProvider.setProductsScrollPosition(_savedScrollPosition);
     }
   }
 
   void _restoreScrollPosition() {
-    if (_scrollController.hasClients && _savedScrollPosition > 0) {
+    final screenStateProvider = Provider.of<ScreenStateProvider>(context, listen: false);
+    final positionToRestore = screenStateProvider.productsScrollPosition;
+    
+    if (_scrollController.hasClients && positionToRestore > 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollController.animateTo(
-          _savedScrollPosition,
+          positionToRestore,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
+      });
+    }
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoadingMore && _hasMoreProducts) {
+        _loadMoreProducts();
+      }
+    }
+  }
+
+  Future<void> _loadMoreProducts() async {
+    if (_isLoadingMore || !_hasMoreProducts) return;
+    
+    setState(() {
+      _isLoadingMore = true;
+    });
+    
+    try {
+      // Simular carregamento de mais produtos
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Verificar se há mais produtos para carregar
+      final totalProducts = products.length;
+      final currentCount = _currentPage * _productsPerPage;
+      
+      if (currentCount >= totalProducts) {
+        setState(() {
+          _hasMoreProducts = false;
+          _isLoadingMore = false;
+        });
+        return;
+      }
+      
+      setState(() {
+        _currentPage++;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      print('Erro ao carregar mais produtos: $e');
+      setState(() {
+        _isLoadingMore = false;
       });
     }
   }
@@ -131,6 +188,17 @@ class _ProductsScreenState extends State<ProductsScreen> with AutomaticKeepAlive
   }
 
   Future<void> _loadProducts() async {
+    final screenStateProvider = Provider.of<ScreenStateProvider>(context, listen: false);
+    
+    // Verificar se já foi carregado globalmente
+    if (screenStateProvider.productsLoaded && products.isNotEmpty) {
+      setState(() {
+        isLoading = false;
+        _isInitialized = true;
+      });
+      return;
+    }
+    
     setState(() {
       isLoading = true;
     });
@@ -145,7 +213,12 @@ class _ProductsScreenState extends State<ProductsScreen> with AutomaticKeepAlive
         products = loadedProducts;
         _filterProducts();
         isLoading = false;
+        _isInitialized = true;
       });
+      
+      // Salvar estado global
+      screenStateProvider.setProductsLoaded(true);
+      screenStateProvider.setProductsData(loadedProducts.map((p) => p.toMap()).toList());
     } catch (e) {
       print('Erro ao carregar produtos: $e');
       setState(() {
@@ -237,6 +310,7 @@ class _ProductsScreenState extends State<ProductsScreen> with AutomaticKeepAlive
     _stopBannerTimer();
     _pageController.dispose();
     _scrollController.removeListener(_saveScrollPosition);
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
   }
@@ -251,6 +325,7 @@ class _ProductsScreenState extends State<ProductsScreen> with AutomaticKeepAlive
     });
     
     return Scaffold(
+      key: const PageStorageKey<String>('products_screen'),
       backgroundColor: const Color(0xFFF8F9FA),
       body: Column(
         children: [
@@ -419,6 +494,7 @@ class _ProductsScreenState extends State<ProductsScreen> with AutomaticKeepAlive
           // Conteúdo principal com rodapé rolável
           Expanded(
             child: SingleChildScrollView(
+              key: const PageStorageKey<String>('products_scroll'),
               controller: _scrollController,
               child: Column(
                 children: [

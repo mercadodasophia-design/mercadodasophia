@@ -4,17 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 import '../../services/aliexpress_service.dart';
 
-// Fallback simples de formatação de preço para evitar dependência
-String _formatPrice(String value, {String currency = 'BRL'}) {
-  try {
-    final v = double.tryParse(value.replaceAll(',', '.'));
-    if (v == null) return value;
-    return 'R\$ ${v.toStringAsFixed(2)}';
-  } catch (_) {
-    return value;
-  }
-}
-
 class AdminFeedsScreen extends StatefulWidget {
   const AdminFeedsScreen({super.key});
 
@@ -25,34 +14,63 @@ class AdminFeedsScreen extends StatefulWidget {
 class _AdminFeedsScreenState extends State<AdminFeedsScreen> {
   final AliExpressService _service = AliExpressService();
   bool _loading = true;
+  bool _loadingProducts = false;
   String? _error;
-  List<Map<String, dynamic>> _feeds = const [];
-  int _selectedFeedIndex = -1; // -1 = Todos
-  int _page = 1;
-  final int _pageSize = 8; // AliExpress só permite 8 produtos por página
-  int? _totalProductsForSelected; // contador por categoria
-  bool _loadingMore = false; // Loading apenas no botão "Carregar mais"
-  final List<Map<String, dynamic>> _aggregatedProducts = [];
-  final Set<String> _seenProductIds = <String>{};
-  bool _hasMoreProducts = true; // Controla se há mais produtos para carregar
+  
+  // Feeds
+  List<Map<String, dynamic>> _feeds = [];
+  String? _selectedFeedName;
+  
+  // Produtos
+  List<Map<String, dynamic>> _products = [];
+  int _currentPage = 1;
+  final int _pageSize = 10; // Reduzido para melhorar performance
+  bool _hasMoreProducts = true;
+  bool _loadingMore = false;
 
   @override
   void initState() {
     super.initState();
-    _initialLoad();
+    _loadFeeds();
   }
 
-  Future<void> _initialLoad() async {
-    await _tryLoadFromCache();
-    await _load(reset: true);
+  Future<void> _loadFeeds() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      print('📋 ADMIN: Carregando feeds...');
+      final data = await _service.getAdminFeeds();
+      
+      if (data['success'] == true) {
+        final feeds = List<Map<String, dynamic>>.from(data['data']['feeds'] ?? []);
+        setState(() {
+          _feeds = feeds;
+          _loading = false;
+        });
+        print('✅ ADMIN: ${feeds.length} feeds carregados');
+      } else {
+        throw Exception(data['message'] ?? 'Erro ao carregar feeds');
+      }
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+      print('❌ ADMIN: Erro ao carregar feeds: $e');
+    }
   }
 
-  Future<void> _load({bool reset = false}) async {
+  Future<void> _loadProducts({bool reset = false}) async {
+    if (_selectedFeedName == null) return;
+
     if (reset) {
       setState(() {
-        _loading = true;
-        _error = null;
-        _page = 1;
+        _loadingProducts = true;
+        _currentPage = 1;
+        _products.clear();
         _hasMoreProducts = true;
       });
     } else {
@@ -62,119 +80,80 @@ class _AdminFeedsScreenState extends State<AdminFeedsScreen> {
     }
 
     try {
-      print('🔍 DEBUG: Carregando página $_page, feed selecionado: $_selectedFeedIndex');
-      final data = await _service.getCompleteFeeds(
-        page: _page, 
-        pageSize: _pageSize, 
-        maxFeeds: 3, 
-        details: true
+             print('📦 ADMIN: Carregando produtos do feed $_selectedFeedName (página $_currentPage)');
+       print('📦 ADMIN: Parâmetros - page: $_currentPage, pageSize: $_pageSize');
+      final data = await _service.getAdminFeedProducts(
+        _selectedFeedName!,
+        page: _currentPage,
+        pageSize: _pageSize,
       );
       
-      print('🔍 DEBUG: Resposta da API: ${data.keys}');
-      
-      final List<dynamic> feeds = (data['feeds'] as List<dynamic>? ?? const []);
-      if (!mounted) return;
-      
-      setState(() {
-        _feeds = feeds.cast<Map<String, dynamic>>();
-        if (reset) _loading = false;
-        _totalProductsForSelected = _computeSelectedCount();
-      });
-
-      // Extrair produtos desta página
-      final List<Map<String, dynamic>> newProducts = _selectedFeedIndex == -1
-          ? _flattenAllProducts(_feeds)
-          : _extractProducts(_feeds[_selectedFeedIndex]);
-      
-      print('🔍 DEBUG: Extraídos ${newProducts.length} produtos desta página');
-      
-      if (!mounted) return;
-      
-      // Adicionar produtos novos (sem duplicatas)
-      int newProductsAdded = 0;
-      setState(() {
-        if (reset) {
-          _aggregatedProducts.clear();
-          _seenProductIds.clear();
-        }
+                    if (data['success'] == true) {
+         final products = List<Map<String, dynamic>>.from(data['data']['products'] ?? []);
+         final pagination = data['data']['pagination'] ?? {};
+         
+         // Debug: verificar estrutura dos dados
+         print('🔍 ADMIN: Estrutura dos dados recebidos:');
+         print('  - Produtos: ${products.length}');
+         print('  - Paginação: $pagination');
+         if (products.isNotEmpty) {
+           print('  - Primeiro produto: ${products.first.keys}');
+           print('  - ID do primeiro produto: ${products.first['id']}');
+           print('  - IDs dos produtos: ${products.map((p) => p['id']).toList()}');
+           print('  - ESTRUTURA COMPLETA DO PRIMEIRO PRODUTO:');
+           print('    ${products.first}');
+           print('  - Imagem do primeiro produto: ${products.first['main_image']}');
+           print('  - URL da imagem: ${products.first['main_image']}');
+           print('  - Tipo da imagem: ${products.first['main_image'].runtimeType}');
+           print('  - Imagem está vazia? ${products.first['main_image'].toString().isEmpty}');
+         }
         
-        for (final p in newProducts) {
-          final id = p['product_id']?.toString() ?? '';
-          if (id.isEmpty || _seenProductIds.contains(id)) continue;
-          _seenProductIds.add(id);
-          _aggregatedProducts.add(p);
-          newProductsAdded++;
-        }
+                 setState(() {
+           if (reset) {
+             _products = products;
+           } else {
+             // Verificar se há produtos duplicados
+             final existingIds = _products.map((p) => p['id']).toSet();
+             final newProducts = products.where((p) => !existingIds.contains(p['id'])).toList();
+             print('🔄 ADMIN: Produtos novos: ${newProducts.length} de ${products.length}');
+             _products.addAll(newProducts);
+           }
+           // Verificar se há mais produtos baseado na paginação e no número de produtos recebidos
+           _hasMoreProducts = (pagination['has_more'] ?? false) || 
+                             (products.length >= _pageSize); // Se recebeu o número máximo, provavelmente há mais
+           _loadingProducts = false;
+           _loadingMore = false;
+         });
         
-        // Verificar se há mais produtos para carregar
-        // Se recebeu produtos novos, pode haver mais páginas
-        // Também continuar se ainda não tentou muitas páginas (cada feed tem milhares de produtos)
-        _hasMoreProducts = newProductsAdded > 0 || (_page < 10 && _aggregatedProducts.length < 100);
-        _loadingMore = false;
-      });
-      
-      print('🔍 DEBUG: Total acumulado: ${_aggregatedProducts.length} produtos (${newProductsAdded} novos adicionados)');
-      print('🔍 DEBUG: Há mais produtos? $_hasMoreProducts');
-      
-      await _saveCache();
+                 print('✅ ADMIN: ${products.length} produtos carregados (total: ${_products.length})');
+         print('✅ ADMIN: Há mais produtos? $_hasMoreProducts');
+      } else {
+        throw Exception(data['message'] ?? 'Erro ao carregar produtos');
+      }
     } catch (e) {
-      if (!mounted) return;
       setState(() {
         _error = e.toString();
-        if (reset) _loading = false;
+        _loadingProducts = false;
         _loadingMore = false;
       });
+      print('❌ ADMIN: Erro ao carregar produtos: $e');
     }
   }
 
-  Future<void> _loadMore() async {
+  Future<void> _loadMoreProducts() async {
     if (_loadingMore || !_hasMoreProducts) return;
     
-    _page += 1;
-    await _load(reset: false);
+    print('🔄 ADMIN: Carregando mais produtos - página atual: $_currentPage');
+    _currentPage++;
+    print('🔄 ADMIN: Nova página: $_currentPage');
+    await _loadProducts(reset: false);
   }
 
-  int? _computeSelectedCount() {
-    if (_selectedFeedIndex < 0 || _selectedFeedIndex >= _feeds.length) return null;
-    final feed = _feeds[_selectedFeedIndex];
-    final count = feed['product_count'];
-    if (count is int) return count;
-    if (count is String) return int.tryParse(count);
-    return null;
-  }
-
-  Future<void> _saveCache() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cache = {
-        'selected_index': _selectedFeedIndex,
-        'page': _page,
-        'products': _aggregatedProducts,
-        'timestamp': DateTime.now().toIso8601String(),
-      };
-      await prefs.setString('admin_feeds_cache', jsonEncode(cache));
-    } catch (_) {}
-  }
-
-  Future<void> _tryLoadFromCache() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString('admin_feeds_cache');
-      if (raw == null) return;
-      final parsed = jsonDecode(raw) as Map<String, dynamic>;
-      final products = (parsed['products'] as List?)?.cast<Map<String, dynamic>>();
-      if (products == null) return;
-      setState(() {
-        _selectedFeedIndex = parsed['selected_index'] as int? ?? -1;
-        _page = parsed['page'] as int? ?? 1;
-        _aggregatedProducts
-          ..clear()
-          ..addAll(products);
-        _seenProductIds
-          ..clear()
-          ..addAll(products.map((p) => p['product_id']?.toString() ?? '').where((e) => e.isNotEmpty));
-      });
-    } catch (_) {}
+  void _selectFeed(String feedName) {
+    setState(() {
+      _selectedFeedName = feedName;
+    });
+    _loadProducts(reset: true);
   }
 
   @override
@@ -190,7 +169,7 @@ class _AdminFeedsScreenState extends State<AdminFeedsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => _load(reset: true),
+            onPressed: _loadFeeds,
           ),
         ],
       ),
@@ -200,306 +179,509 @@ class _AdminFeedsScreenState extends State<AdminFeedsScreen> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
     }
+
     if (_error != null) {
-      return Center(child: Text('Erro: $_error'));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red.shade300,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Erro ao carregar feeds',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.red.shade700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: TextStyle(color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadFeeds,
+              child: const Text('Tentar Novamente'),
+            ),
+          ],
+        ),
+      );
     }
-    if (_feeds.isEmpty) {
-      return const Center(child: Text('Nenhum feed disponível'));
-    }
 
-    final chips = ['Todos', ..._feeds.map((f) => (f['display_name']?.toString() ?? f['feed_name']?.toString() ?? 'Feed')).toList()];
+    return Column(
+      children: [
+        // Seção de Feeds (Chips)
+        _buildFeedsSection(),
+        
+        // Seção de Produtos
+        Expanded(
+          child: _buildProductsSection(),
+        ),
+      ],
+    );
+  }
 
-    final List<Map<String, dynamic>> products = _aggregatedProducts;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+  Widget _buildFeedsSection() {
+    return Container(
+      height: 200, // Altura fixa para evitar overflow
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Chips de categorias (feeds)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          // Header fixo
+          Container(
+            padding: const EdgeInsets.all(16),
             child: Row(
-              children: List.generate(chips.length, (i) {
-                final selected = (i - 1) == _selectedFeedIndex;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(chips[i]),
-                    selected: i == 0 ? _selectedFeedIndex == -1 : selected,
-                    onSelected: (_) {
-                      setState(() {
-                        _selectedFeedIndex = i == 0 ? -1 : i - 1;
-                        _page = 1;
-                        _totalProductsForSelected = _computeSelectedCount();
-                        _aggregatedProducts.clear();
-                        _seenProductIds.clear();
-                        _hasMoreProducts = true;
-                      });
-                      _load(reset: true);
-                    },
+              children: [
+                const Icon(Icons.rss_feed, color: Colors.blue),
+                const SizedBox(width: 8),
+                Text(
+                  'Feeds Disponíveis (${_feeds.length})',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                );
-              }),
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_selectedFeedIndex >= 0)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Text(
-                _totalProductsForSelected != null
-                    ? 'Produtos nesta categoria: $_totalProductsForSelected'
-                    : 'Produtos nesta categoria',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-
-          // Grid de produtos
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 0.68,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-            ),
-            itemCount: products.length,
-            itemBuilder: (context, i) => _ProductCard(product: products[i]),
-          ),
-          const SizedBox(height: 12),
-          
-          // Botão "Carregar mais" com loading
-          if (_hasMoreProducts)
-            Center(
-              child: TextButton.icon(
-                onPressed: _loadingMore ? null : _loadMore,
-                icon: _loadingMore
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.expand_more),
-                label: Text(_loadingMore ? 'Carregando...' : 'Carregar mais'),
-              ),
-            ),
-          
-          // Indicador de fim da lista
-          if (!_hasMoreProducts && products.isNotEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  'Todos os produtos foram carregados',
-                  style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
                 ),
+              ],
+            ),
+          ),
+          
+          // Chips scrolláveis
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  // Chip "Todos"
+                  FilterChip(
+                    label: const Text('Todos'),
+                    selected: _selectedFeedName == null,
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() {
+                          _selectedFeedName = null;
+                          _products.clear();
+                        });
+                      }
+                    },
+                    selectedColor: Colors.blue.shade100,
+                    checkmarkColor: Colors.blue,
+                  ),
+                  // Chips dos feeds
+                  ..._feeds.map((feed) {
+                    final feedName = feed['name'] ?? '';
+                    final productCount = feed['product_count'] ?? 0;
+                    final isSelected = _selectedFeedName == feedName;
+                    
+                    return FilterChip(
+                      label: Text('${feed['display_name'] ?? feedName} ($productCount)'),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        if (selected) {
+                          _selectFeed(feedName);
+                        }
+                      },
+                      selectedColor: Colors.blue.shade100,
+                      checkmarkColor: Colors.blue,
+                    );
+                  }).toList(),
+                ],
               ),
             ),
+          ),
         ],
       ),
     );
   }
 
-  List<Map<String, dynamic>> _flattenAllProducts(List<Map<String, dynamic>> feeds) {
-    final List<Map<String, dynamic>> all = [];
-    for (final f in feeds) {
-      all.addAll(_extractProducts(f));
+  Widget _buildProductsSection() {
+    if (_selectedFeedName == null) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.inventory_2_outlined,
+              size: 64,
+              color: Colors.grey,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Selecione um feed para ver os produtos',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      );
     }
-    return all;
+
+    if (_loadingProducts) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Carregando produtos do feed...',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Isso pode levar alguns segundos',
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_products.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.inventory_2_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Nenhum produto encontrado',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Header dos produtos
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border(
+              bottom: BorderSide(color: Colors.grey.shade200),
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.inventory, color: Colors.green),
+              const SizedBox(width: 8),
+              Text(
+                'Produtos do Feed: ${_selectedFeedName}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${_products.length} produtos',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+                 // Lista de produtos
+         Expanded(
+           child: GridView.builder(
+             padding: const EdgeInsets.all(16),
+             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+               crossAxisCount: MediaQuery.of(context).size.width > 1200 ? 4 : 
+                              MediaQuery.of(context).size.width > 800 ? 3 : 2,
+               childAspectRatio: 0.75,
+               crossAxisSpacing: 16,
+               mainAxisSpacing: 16,
+             ),
+             itemCount: _products.length + (_hasMoreProducts ? 1 : 0),
+             itemBuilder: (context, index) {
+               if (index == _products.length) {
+                 // Botão "Carregar Mais"
+                 return _buildLoadMoreButton();
+               }
+               
+               final product = _products[index];
+               return _buildProductCard(product);
+             },
+           ),
+         ),
+      ],
+    );
   }
 
-  List<Map<String, dynamic>> _extractProducts(Map<String, dynamic> feed) {
-    final List<Map<String, dynamic>> list = [];
+  Widget _buildProductCard(Map<String, dynamic> product) {
+    final title = product['title'] ?? 'Sem título';
+    final price = product['price'] ?? 0.0;
+    final originalPrice = product['original_price'] ?? 0.0;
+    final rating = product['rating'] ?? 0.0;
+    final orders = product['orders'] ?? 0;
+    // Tentar pegar a primeira imagem do array images se main_image estiver vazio
+    final mainImage = (product['main_image']?.toString().isNotEmpty == true) 
+        ? product['main_image'] 
+        : (product['images'] is List && (product['images'] as List).isNotEmpty) 
+            ? (product['images'] as List).first 
+            : '';
+    final isImported = product['is_imported'] ?? false;
     
-    print('🔍 DEBUG: Extraindo produtos do feed: ${feed['feed_name']}');
-    print('🔍 DEBUG: Estrutura do feed: ${feed.keys}');
-    
-    // 1) Primeiro tentar products (formato simples)
-    if (feed['products'] is List) {
-      final List<dynamic> products = feed['products'];
-      print('🔍 DEBUG: Encontrados ${products.length} produtos em products[]');
-      for (final product in products) {
-        if (product is Map<String, dynamic>) {
-          list.add({
-            'product_id': product['product_id']?.toString() ?? '',
-            'title': product['title']?.toString() ?? '',
-            'main_image': product['main_image']?.toString() ?? '',
-            'price': product['price']?.toString() ?? '',
-            'currency': product['currency']?.toString() ?? 'BRL',
-          });
-        }
-      }
-    }
-    
-    // 2) Se não encontrou produtos, tentar item_ids (formato complexo)
-    if (list.isEmpty && feed['item_ids'] is Map) {
-      print('🔍 DEBUG: Tentando extrair de item_ids...');
-      (feed['item_ids'] as Map).forEach((key, value) {
-        if (value is List && value.isNotEmpty && value.first is Map) {
-          final Map result = value.first as Map;
-          // Normalizar campos
-          final base = result['ae_item_base_info_dto'] as Map? ?? const {};
-          final multimedia = result['ae_multimedia_info_dto'] as Map? ?? const {};
-          String? mainImage;
-          final imageUrls = multimedia['image_urls']?.toString();
-          if (imageUrls != null && imageUrls.isNotEmpty) {
-            final parts = imageUrls.split(';');
-            if (parts.isNotEmpty) mainImage = parts.first;
-          }
-          // Fallback de main_image via products resumidos, se existir
-          mainImage ??= result['product_main_image_url']?.toString();
-          // Fallback extra: primeira imagem de algum SKU
-          if (mainImage == null || mainImage.isEmpty) {
-            final skusMap = result['ae_item_sku_info_dtos'] as Map?;
-            final skus = skusMap != null ? skusMap['ae_item_sku_info_d_t_o'] : null;
-            if (skus is List && skus.isNotEmpty) {
-              for (final s in skus) {
-                final propMap = (s as Map?)?['ae_sku_property_dtos'] as Map?;
-                final props = propMap != null ? propMap['ae_item_sku_property_d_t_o'] : null;
-                if (props is List) {
-                  for (final p in props) {
-                    final img = (p as Map?)?['sku_image']?.toString();
-                    if (img != null && img.isNotEmpty) { mainImage = img; break; }
-                  }
-                }
-                if (mainImage != null && mainImage.isNotEmpty) break;
-              }
-            }
-          }
-          final skuInfo = _extractPriceAndImageFromSkus(result);
-          if ((mainImage == null || mainImage.isEmpty) && skuInfo != null && (skuInfo['image']?.toString().isNotEmpty ?? false)) {
-            mainImage = skuInfo['image'].toString();
-          }
-          final price = (skuInfo?['price']?.toString()) ??
-              base['target_sale_price']?.toString() ??
-              base['sale_price']?.toString() ??
-              result['sale_price']?.toString() ?? '';
-          list.add({
-            'product_id': key.toString(),
-            'title': base['subject']?.toString() ?? '',
-            'main_image': mainImage,
-            'price': price,
-            'currency': skuInfo?['currency']?.toString() ?? 'BRL',
-          });
-        }
-      });
-    }
-    
-    // 3) Se ainda não encontrou, tentar item_ids como lista simples
-    if (list.isEmpty && feed['item_ids'] is List) {
-      print('🔍 DEBUG: Tentando extrair de item_ids como lista...');
-      final List<dynamic> itemIds = feed['item_ids'];
-      for (final id in itemIds) {
-        list.add({
-          'product_id': id.toString(),
-          'title': 'Produto ${id}',
-          'main_image': '',
-          'price': '0.00',
-          'currency': 'BRL',
-        });
-      }
-    }
-    
-    print('🔍 DEBUG: Total de produtos extraídos: ${list.length}');
-    return list;
-  }
-
-  Map<String, dynamic>? _extractPriceAndImageFromSkus(Map data) {
-    final skus = (data['ae_item_sku_info_dtos'] as Map?)?['ae_item_sku_info_d_t_o'];
-    if (skus is! List || skus.isEmpty) return null;
-
-    double? minPrice;
-    String? currency;
-    String? skuImage;
-    for (final raw in skus) {
-      final sku = raw as Map? ?? const {};
-      final sale = sku['offer_sale_price']?.toString();
-      final base = sku['sku_price']?.toString();
-      final code = sku['currency_code']?.toString();
-      if (currency == null && code != null && code.isNotEmpty) currency = code;
-      final p = double.tryParse((sale ?? base ?? '').replaceAll(',', '.'));
-      if (p != null) {
-        if (minPrice == null || p < minPrice) minPrice = p;
-      }
-      // Tentar imagem de variação
-      if (skuImage == null || skuImage.isEmpty) {
-        final propMap = (sku['ae_sku_property_dtos'] as Map?)?['ae_item_sku_property_d_t_o'];
-        if (propMap is List) {
-          for (final pr in propMap) {
-            final img = (pr as Map?)?['sku_image']?.toString();
-            if (img != null && img.isNotEmpty) { skuImage = img; break; }
-          }
-        }
-      }
-    }
-    if (minPrice == null) return null;
-    return {
-      'price': minPrice.toStringAsFixed(2),
-      'currency': currency ?? 'BRL',
-      'image': skuImage,
-    };
-  }
-}
-
-class _ProductCard extends StatelessWidget {
-  final Map<String, dynamic> product;
-
-  const _ProductCard({required this.product});
-
-  @override
-  Widget build(BuildContext context) {
-    final String title = product['title']?.toString() ?? '';
-    final String? image = product['main_image']?.toString();
-    final String? price = product['price']?.toString();
-    final String currency = product['currency']?.toString() ?? 'BRL';
+    // Debug: verificar dados do produto
+    print('🖼️ ADMIN: Construindo card do produto:');
+    print('  - Título: $title');
+    print('  - Preço: $price');
+    print('  - Preço original: ${product['original_price']}');
+    print('  - Campo price: ${product['price']}');
+    print('  - Campo price type: ${product['price'].runtimeType}');
+    print('  - Campo original_price: ${product['original_price']}');
+    print('  - Campo currency: ${product['currency']}');
+    print('  - Campo discount: ${product['discount']}');
+    print('  - Todos os campos do produto: ${product.keys.toList()}');
+    print('  - Campos que contêm "price": ${product.keys.where((k) => k.toString().toLowerCase().contains('price')).toList()}');
+    print('  - Imagem final: "$mainImage"');
+    print('  - Tipo da imagem: ${mainImage.runtimeType}');
+    print('  - Imagem vazia? ${mainImage.isEmpty}');
+    print('  - Campo images: ${product['images']}');
+    print('  - Campo main_image: ${product['main_image']}');
 
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: InkWell(
-        onTap: () {},
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              height: 120,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Imagem do produto
+          Expanded(
+            flex: 3,
+            child: Container(
               width: double.infinity,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(10),
-                  topRight: Radius.circular(10),
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
                 ),
-                child: image == null || image.isEmpty
-                    ? Container(color: Colors.grey.shade200)
-                    : Image.network(
-                        image,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(color: Colors.grey.shade200),
-                      ),
+                color: Colors.grey.shade100,
               ),
+                             child: mainImage.isNotEmpty
+                   ? ClipRRect(
+                       borderRadius: const BorderRadius.vertical(
+                         top: Radius.circular(12),
+                       ),
+                       child: Image.network(
+                         mainImage,
+                         fit: BoxFit.cover,
+                         loadingBuilder: (context, child, loadingProgress) {
+                           if (loadingProgress == null) return child;
+                           return Center(
+                             child: CircularProgressIndicator(
+                               value: loadingProgress.expectedTotalBytes != null
+                                   ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                   : null,
+                               strokeWidth: 2,
+                             ),
+                           );
+                         },
+                         errorBuilder: (context, error, stackTrace) {
+                           print('❌ Erro ao carregar imagem: $mainImage - $error');
+                           return const Center(
+                             child: Icon(
+                               Icons.image_not_supported,
+                               color: Colors.grey,
+                             ),
+                           );
+                         },
+                       ),
+                     )
+                  : const Center(
+                      child: Icon(
+                        Icons.image_not_supported,
+                        color: Colors.grey,
+                      ),
+                    ),
             ),
-            Padding(
+          ),
+          
+          // Informações do produto
+          Expanded(
+            flex: 2,
+            child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Título
                   Text(
                     title,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(height: 6),
-                  if (price != null && price.isNotEmpty && price != '0' && price != '0.00')
-                    Text(
-                      _formatPrice(price, currency: currency),
-                      style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 4),
+                  
+                  // Preço
+                  Row(
+                    children: [
+                      Text(
+                        'R\$ ${price.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                      if (originalPrice > price) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          'R\$ ${originalPrice.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            decoration: TextDecoration.lineThrough,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  
+                  const Spacer(),
+                  
+                  // Avaliação e vendas
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.star,
+                        size: 12,
+                        color: Colors.orange.shade400,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        rating.toStringAsFixed(1),
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.shopping_cart,
+                        size: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        orders.toString(),
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    ],
+                  ),
+                  
+                  // Botão Importar
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: isImported ? null : () {
+                        // TODO: Implementar importação
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Funcionalidade de importação em desenvolvimento'),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        backgroundColor: isImported ? Colors.grey : Colors.blue,
+                      ),
+                      child: Text(
+                        isImported ? 'Importado' : 'Importar',
+                        style: const TextStyle(fontSize: 10),
+                      ),
                     ),
+                  ),
                 ],
               ),
-            )
-          ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadMoreButton() {
+    print('🔍 ADMIN: Construindo botão "Carregar Mais" - _hasMoreProducts: $_hasMoreProducts, _loadingMore: $_loadingMore');
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: _loadingMore ? null : _loadMoreProducts,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.blue.shade50,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_loadingMore)
+                const CircularProgressIndicator()
+              else
+                Icon(
+                  Icons.add_circle_outline,
+                  size: 32,
+                  color: Colors.blue.shade400,
+                ),
+              const SizedBox(height: 8),
+              Text(
+                _loadingMore ? 'Carregando...' : 'Carregar Mais',
+                style: TextStyle(
+                  color: Colors.blue.shade600,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

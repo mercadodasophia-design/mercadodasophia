@@ -26,6 +26,7 @@ import 'screens/admin/admin_banners_sexyshop_screen.dart';
 import 'screens/admin/admin_add_banner_screen.dart';
 import 'screens/admin/admin_contact_messages_screen.dart';
 import 'screens/admin/admin_financial_screen.dart';
+import 'screens/admin/admin_aliexpress_ds_screen.dart';
 import 'services/auth_service.dart';
 import 'services/firebase_product_service.dart';
 import 'services/aliexpress_auth_service.dart';
@@ -98,6 +99,7 @@ class MercadoDaSophiaAdminApp extends StatelessWidget {
           '/admin/add-banner': (context) => const AdminAddBannerScreen(),
           '/admin/contact-messages': (context) => const AdminContactMessagesScreen(),
           '/admin/financial': (context) => const AdminFinancialScreen(),
+          '/admin/aliexpress-ds': (context) => const AdminAliExpressDSScreen(),
           // Rotas temporárias para funcionalidades não implementadas
           '/admin/reports': (context) => _buildComingSoonScreen('Relatórios'),
           '/admin/backup': (context) => _buildComingSoonScreen('Backup'),

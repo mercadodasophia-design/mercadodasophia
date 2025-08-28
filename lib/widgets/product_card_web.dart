@@ -108,15 +108,17 @@ class ProductCardWeb extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Nome do produto
-                    Text(
-                      product.titulo,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                    Flexible(
+                      child: Text(
+                        product.titulo,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     // Preço com margem aplicada
@@ -142,7 +144,8 @@ class ProductCardWeb extends StatelessWidget {
                               ),
                               const SizedBox(height: 2),
                               // Preço com desconto
-                              Row(
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     'R\$ ${(displayPrice * (1 - (product.descontoPercentual! / 100))).toStringAsFixed(2)}',
@@ -152,7 +155,7 @@ class ProductCardWeb extends StatelessWidget {
                                       color: AppTheme.primaryColor,
                                     ),
                                   ),
-                                  const SizedBox(width: 4),
+                                  const SizedBox(height: 2),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
                                     decoration: BoxDecoration(
@@ -187,23 +190,29 @@ class ProductCardWeb extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     // Rating e vendas
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.star,
-                          size: 12,
-                          color: Colors.amber,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.star,
+                              size: 12,
+                              color: Colors.amber,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              0.0 > 0 ? 0.0.toStringAsFixed(1) : '',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 2),
-                        Text(
-                          0.0 > 0 ? 0.0.toStringAsFixed(1) : '',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
+                        const SizedBox(height: 2),
                         Text(
                           0 > 0 
                               ? '${0} vendidos'

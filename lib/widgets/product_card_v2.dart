@@ -104,15 +104,17 @@ class ProductCardV2 extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min, // Permite crescer
                 children: [
                   // Nome do produto
-                  Text(
-                    product.titulo,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black,
+                  Flexible(
+                    child: Text(
+                      product.titulo,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black,
+                      ),
+                      maxLines: 2, // Reduzido para 2 linhas
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 3, // Permite até 3 linhas
-                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   // Preço com margem aplicada
@@ -138,7 +140,8 @@ class ProductCardV2 extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             // Preço com desconto
-                            Row(
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   'R\$ ${(displayPrice * (1 - (product.descontoPercentual! / 100))).toStringAsFixed(2)}',
@@ -148,7 +151,7 @@ class ProductCardV2 extends StatelessWidget {
                                     color: Colors.black,
                                   ),
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(height: 2),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
                                   decoration: BoxDecoration(
@@ -183,35 +186,39 @@ class ProductCardV2 extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   // Vendas e avaliação
-                  Row(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          0 > 0 
-                              ? '${0} vendidos'
-                              : 'Novo produto',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[600],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.star,
-                        size: 10,
-                        color: Colors.amber,
-                      ),
-                      const SizedBox(width: 2),
                       Text(
-                        0.0 > 0 ? 0.0.toStringAsFixed(1) : '',
+                        0 > 0 
+                            ? '${0} vendidos'
+                            : 'Novo produto',
                         style: TextStyle(
                           fontSize: 10,
                           color: Colors.grey[600],
-                          fontWeight: FontWeight.bold,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.star,
+                            size: 10,
+                            color: Colors.amber,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            0.0 > 0 ? 0.0.toStringAsFixed(1) : '',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

@@ -33,7 +33,6 @@ class LocationService {
 
       return true;
     } catch (e) {
-      print('Erro ao solicitar permissão de localização: $e');
       return false;
     }
   }
@@ -46,20 +45,14 @@ class LocationService {
         return null;
       }
 
-      print('📍 Obtendo localização com alta precisão...');
-      
       // Primeira tentativa com alta precisão
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 15),
       );
 
-      print('📍 Localização obtida: ${position.latitude}, ${position.longitude}');
-      print('📍 Precisão: ${position.accuracy} metros');
-
       return position;
     } catch (e) {
-      print('❌ Erro ao obter localização: $e');
       return null;
     }
   }
@@ -72,8 +65,6 @@ class LocationService {
         return null;
       }
 
-      print('🎯 Obtendo localização com múltiplas tentativas...');
-      
       List<Position> positions = [];
       
       // Fazer 3 tentativas para obter a melhor precisão
@@ -85,29 +76,25 @@ class LocationService {
           );
           
           positions.add(position);
-          print('📍 Tentativa ${i + 1}: ${position.latitude}, ${position.longitude} (precisão: ${position.accuracy}m)');
           
           // Se a precisão for muito boa, usar imediatamente
           if (position.accuracy <= 10) {
-            print('✅ Precisão excelente encontrada!');
             return position;
           }
           
           // Pequena pausa entre tentativas
           await Future.delayed(const Duration(milliseconds: 500));
         } catch (e) {
-          print('⚠️ Tentativa ${i + 1} falhou: $e');
+          // Erro silencioso
         }
       }
       
       if (positions.isEmpty) {
-        print('❌ Nenhuma posição obtida');
         return null;
       }
       
       // Usar a posição com melhor precisão
       Position bestPosition = positions.reduce((a, b) => a.accuracy < b.accuracy ? a : b);
-      print('✅ Melhor posição selecionada: ${bestPosition.latitude}, ${bestPosition.longitude} (precisão: ${bestPosition.accuracy}m)');
       
       return bestPosition;
     } catch (e) {
@@ -119,22 +106,10 @@ class LocationService {
   // Obter endereço a partir das coordenadas
   Future<String?> getAddressFromCoordinates(double latitude, double longitude) async {
     try {
-      print('🔍 Tentando obter endereço para: $latitude, $longitude');
-      
       List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
-      
-      print('📍 Placemarks encontrados: ${placemarks.length}');
       
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-        
-        print('📍 Dados do placemark:');
-        print('  - Street: ${place.street}');
-        print('  - SubThoroughfare: ${place.subThoroughfare}');
-        print('  - SubLocality: ${place.subLocality}');
-        print('  - Locality: ${place.locality}');
-        print('  - AdministrativeArea: ${place.administrativeArea}');
-        print('  - PostalCode: ${place.postalCode}');
         
         // Construir endereço com prioridade para informações mais específicas
         List<String> addressParts = [];
@@ -191,23 +166,15 @@ class LocationService {
   // Obter localização completa (posição + endereço) com alta precisão
   Future<Map<String, dynamic>?> getFullLocation() async {
     try {
-      print('🎯 Obtendo localização completa com alta precisão...');
-      
       Position? position = await getHighAccuracyLocation();
       if (position == null) {
-        print('❌ Não foi possível obter posição');
         return null;
       }
-
-      print('📍 Posição obtida: ${position.latitude}, ${position.longitude}');
-      print('📍 Precisão: ${position.accuracy} metros');
 
       String? address = await getAddressFromCoordinates(
         position.latitude,
         position.longitude,
       );
-
-      print('📍 Endereço obtido: $address');
 
       return {
         'latitude': position.latitude,
@@ -220,7 +187,6 @@ class LocationService {
         'address': address,
       };
     } catch (e) {
-      print('❌ Erro ao obter localização completa: $e');
       return null;
     }
   }
@@ -245,10 +211,8 @@ class LocationService {
       double c = 2 * asin(sqrt(a));
       double distance = earthRadius * c;
       
-      print('📍 Distância calculada: ${distance.toStringAsFixed(2)} metros');
       return distance;
     } catch (e) {
-      print('❌ Erro ao calcular distância: $e');
       // Fallback para o método do Geolocator
       return Geolocator.distanceBetween(
         startLatitude, startLongitude, endLatitude, endLongitude,
@@ -265,7 +229,6 @@ class LocationService {
   bool isWithinRadius(double centerLat, double centerLng, 
                      double userLat, double userLng, double radiusInMeters) {
     double distance = calculateDistance(centerLat, centerLng, userLat, userLng);
-    print('📍 Distância até o centro: ${distance.toStringAsFixed(2)} metros');
     return distance <= radiusInMeters;
   }
 
@@ -274,10 +237,6 @@ class LocationService {
     // Brasil: aproximadamente entre -33° e 5° de latitude, -74° e -34° de longitude
     bool validLat = latitude >= -33.0 && latitude <= 5.0;
     bool validLng = longitude >= -74.0 && longitude <= -34.0;
-    
-    print('📍 Validação de coordenadas brasileiras:');
-    print('  - Latitude: $latitude (válida: $validLat)');
-    print('  - Longitude: $longitude (válida: $validLng)');
     
     return validLat && validLng;
   }

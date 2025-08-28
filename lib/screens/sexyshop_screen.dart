@@ -31,6 +31,7 @@ class _SexyShopScreenState extends State<SexyShopScreen> with AutomaticKeepAlive
   
   bool _isLoading = true;
   bool _isLoadingCategories = true;
+  bool _isInitialized = false;
   bool _isLoadingMore = false;
   bool _hasMoreProducts = true;
   int _currentPage = 1;
@@ -42,7 +43,7 @@ class _SexyShopScreenState extends State<SexyShopScreen> with AutomaticKeepAlive
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  double _savedScrollPosition = 0.0;
+    double _savedScrollPosition = 0.0;
 
   @override
   bool get wantKeepAlive => true;
@@ -58,14 +59,20 @@ class _SexyShopScreenState extends State<SexyShopScreen> with AutomaticKeepAlive
   void _saveScrollPosition() {
     if (_scrollController.hasClients) {
       _savedScrollPosition = _scrollController.offset;
+      // Salvar também no PageStorage para persistência
+      PageStorage.of(context)?.writeState(context, _savedScrollPosition, identifier: 'sexyshop_scroll_position');
     }
   }
 
   void _restoreScrollPosition() {
-    if (_scrollController.hasClients && _savedScrollPosition > 0) {
+    // Tentar restaurar do PageStorage primeiro
+    final savedPosition = PageStorage.of(context)?.readState(context, identifier: 'sexyshop_scroll_position') as double?;
+    final positionToRestore = savedPosition ?? _savedScrollPosition;
+    
+    if (_scrollController.hasClients && positionToRestore > 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollController.animateTo(
-          _savedScrollPosition,
+          positionToRestore,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
@@ -104,6 +111,11 @@ class _SexyShopScreenState extends State<SexyShopScreen> with AutomaticKeepAlive
   }
 
   Future<void> _loadSexyShopProducts({bool reset = false}) async {
+    // Verificar se já foi inicializado para evitar recarregamento
+    if (reset && _isInitialized && _products.isNotEmpty) {
+      return;
+    }
+    
     if (reset) {
       setState(() {
         _isLoading = true;
@@ -146,7 +158,7 @@ class _SexyShopScreenState extends State<SexyShopScreen> with AutomaticKeepAlive
       _filterProducts();
       
       // Calcular quantos produtos já foram mostrados
-      final currentCount = _displayedProducts.length;
+      final currentCount = reset ? 0 : _displayedProducts.length;
       final nextCount = currentCount + _productsPerPage;
       
       // Pegar apenas os próximos produtos
@@ -166,6 +178,7 @@ class _SexyShopScreenState extends State<SexyShopScreen> with AutomaticKeepAlive
         _isLoading = false;
         _isLoadingMore = false;
         _hasMoreProducts = _displayedProducts.length < _filteredProducts.length;
+        _isInitialized = true;
       });
     } catch (e) {
       setState(() {
@@ -193,7 +206,7 @@ class _SexyShopScreenState extends State<SexyShopScreen> with AutomaticKeepAlive
 
   void _loadMoreProducts() {
     if (!_isLoadingMore && _hasMoreProducts) {
-      _loadSexyShopProducts();
+      _loadSexyShopProducts(reset: false);
     }
   }
 
@@ -229,6 +242,22 @@ class _SexyShopScreenState extends State<SexyShopScreen> with AutomaticKeepAlive
     return _displayedProducts;
   }
 
+  int _getCrossAxisCount(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 600) return 2; // Mobile
+    if (width < 900) return 3; // Tablet
+    if (width < 1200) return 4; // Desktop pequeno
+    return 5; // Desktop grande
+  }
+
+  double _getChildAspectRatio(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 600) return 0.8; // Mobile - mais alto
+    if (width < 900) return 0.75; // Tablet
+    if (width < 1200) return 0.7; // Desktop pequeno
+    return 0.65; // Desktop grande
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Necessário para AutomaticKeepAliveClientMixin
@@ -239,6 +268,7 @@ class _SexyShopScreenState extends State<SexyShopScreen> with AutomaticKeepAlive
     });
     
     return Scaffold(
+      key: const PageStorageKey<String>('sexyshop_screen'),
       backgroundColor: const Color(0xFF1A1A1A), // Fundo escuro
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
@@ -310,6 +340,7 @@ class _SexyShopScreenState extends State<SexyShopScreen> with AutomaticKeepAlive
         ),
       ),
       body: CustomScrollView(
+        key: const PageStorageKey<String>('sexyshop_scroll'),
         controller: _scrollController,
         slivers: [
           // Header expandido com gradiente e slide de banners
@@ -802,11 +833,11 @@ class _SexyShopScreenState extends State<SexyShopScreen> with AutomaticKeepAlive
           child: GridView.builder(
             shrinkWrap: true,
             physics: const ClampingScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 5,
-              childAspectRatio: 0.7,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: _getCrossAxisCount(context),
+              childAspectRatio: _getChildAspectRatio(context),
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
             ),
             itemCount: filteredProducts.length,
             itemBuilder: (context, index) {

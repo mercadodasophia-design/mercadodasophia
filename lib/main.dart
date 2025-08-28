@@ -29,6 +29,7 @@ import 'providers/location_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/address_provider.dart';
 import 'providers/profit_margin_provider.dart';
+import 'providers/screen_state_provider.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -56,6 +57,7 @@ class MercadoDaSophiaApp extends StatelessWidget {
   GoRouter _createRouter() {
     return GoRouter(
       initialLocation: '/',
+      debugLogDiagnostics: true,
       routes: [
         // Rota raiz - redireciona para produtos
         GoRoute(
@@ -254,6 +256,9 @@ class MercadoDaSophiaApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<ProfitMarginProvider>(
           create: (_) => ProfitMarginProvider(),
+        ),
+        ChangeNotifierProvider<ScreenStateProvider>(
+          create: (_) => ScreenStateProvider(),
         ),
         Provider<FirebaseProductService>(
           create: (_) => FirebaseProductService(),

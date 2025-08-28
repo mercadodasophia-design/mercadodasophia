@@ -74,29 +74,23 @@ class LocationProvider extends ChangeNotifier {
     try {
       final user = authService.currentUser;
       if (user != null) {
-        print('🔍 Carregando endereço salvo para usuário: ${user.uid}');
-        
         final doc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .get();
         
         final userData = doc.data();
-        print('📄 Dados do usuário: $userData');
         
         if (userData != null && userData['selectedAddress'] != null) {
           _savedAddress = Map<String, dynamic>.from(userData['selectedAddress']);
           _hasSavedAddress = true;
-          print('✅ Endereço salvo carregado: $_savedAddress');
           notifyListeners();
         } else {
           _hasSavedAddress = false;
           _savedAddress = null;
-          print('❌ Nenhum endereço salvo encontrado');
         }
       }
     } catch (e) {
-      print('❌ Erro ao carregar endereço salvo: $e');
       _hasSavedAddress = false;
       _savedAddress = null;
     }
@@ -108,12 +102,10 @@ class LocationProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      print('🎯 Iniciando obtenção de localização com alta precisão...');
       Map<String, dynamic>? locationData = await _locationService.getFullLocation();
       
       if (locationData != null) {
         try {
-          print('📍 Dados de localização obtidos: $locationData');
           _currentLocation = UserLocation.fromPosition(locationData);
           
           // Validar se as coordenadas são razoáveis para o Brasil
@@ -124,36 +116,21 @@ class LocationProvider extends ChangeNotifier {
             );
             
             if (!isValid) {
-              print('⚠️ Coordenadas fora do Brasil detectadas');
               _setError('Localização parece estar fora do Brasil. Verifique o GPS.');
-            } else {
-              print('✅ Coordenadas válidas para o Brasil');
-            }
-            
-            // Mostrar precisão da localização
-            if (_currentLocation!.accuracy != null) {
-              String accuracyDesc = _locationService.getAccuracyDescription(_currentLocation!.accuracy!);
-              print('📍 Precisão da localização: $accuracyDesc');
             }
           }
           
-          print('📍 Localização criada: ${_currentLocation!.address}');
-          
           // SEMPRE tentar obter endereço, mesmo se já tiver um
-          print('🔄 Forçando atualização do endereço...');
           await _updateAddressFromCoordinates();
           
           notifyListeners();
         } catch (e) {
-          print('❌ Erro ao criar UserLocation: $e');
           _setError('Erro ao processar dados de localização');
         }
       } else {
-        print('❌ Nenhum dado de localização obtido');
         _setError('Não foi possível obter a localização atual');
       }
     } catch (e) {
-      print('❌ Erro ao obter localização: $e');
       _setError('Erro ao obter localização: $e');
     } finally {
       _setLoading(false);
@@ -164,25 +141,18 @@ class LocationProvider extends ChangeNotifier {
   Future<void> _updateAddressFromCoordinates() async {
     if (_currentLocation == null) return;
     
-    print('🔄 Atualizando endereço para coordenadas: ${_currentLocation!.latitude}, ${_currentLocation!.longitude}');
-    
     try {
       String? address = await _locationService.getAddressFromCoordinates(
         _currentLocation!.latitude,
         _currentLocation!.longitude,
       );
       
-      print('📍 Endereço retornado: $address');
-      
       if (address != null && address.isNotEmpty) {
-        print('✅ Atualizando localização com novo endereço');
         _currentLocation = _currentLocation!.copyWith(address: address);
         notifyListeners();
-      } else {
-        print('⚠️ Endereço vazio ou nulo retornado');
       }
     } catch (e) {
-      print('❌ Erro ao atualizar endereço: $e');
+      // Erro silencioso
     }
   }
 
@@ -202,7 +172,6 @@ class LocationProvider extends ChangeNotifier {
             position.longitude,
           );
         } catch (e) {
-          print('Erro ao obter endereço: $e');
           address = null;
         }
 
@@ -281,7 +250,6 @@ class LocationProvider extends ChangeNotifier {
         longitude,
       );
     } catch (e) {
-      print('Erro ao calcular distância: $e');
       return -1;
     }
   }
@@ -300,7 +268,6 @@ class LocationProvider extends ChangeNotifier {
         radiusInMeters,
       );
     } catch (e) {
-      print('Erro ao verificar raio: $e');
       return false;
     }
   }
@@ -308,49 +275,36 @@ class LocationProvider extends ChangeNotifier {
   // Obter endereço formatado
   String getFormattedAddress() {
     try {
-      print('📍 getFormattedAddress() chamado');
-      print('  - hasSavedAddress: $_hasSavedAddress');
-      print('  - currentLocation: ${_currentLocation != null}');
-      print('  - hasLocation: $hasLocation');
-      
       // Prioridade: endereço salvo > localização atual
       if (_hasSavedAddress && _savedAddress != null) {
-        print('  - Usando endereço salvo');
         return _formatSavedAddress();
       }
       
       if (_currentLocation == null || !hasLocation) {
-        print('  - Localização não disponível');
         return 'Localização não disponível';
       }
       
       final location = _currentLocation!;
-      print('  - Endereço atual: ${location.address}');
-      print('  - Coordenadas: ${location.latitude}, ${location.longitude}');
       
       // Mostrar informações de precisão se disponível
       if (location.accuracy != null) {
         String accuracyDesc = _locationService.getAccuracyDescription(location.accuracy!);
-        print('  - Precisão: $accuracyDesc');
       }
       
       // Se temos um endereço válido, usar ele
       if (location.address != null && location.address!.isNotEmpty && 
           !location.address!.contains('Localização:')) {
-        print('  - Retornando endereço válido: ${location.address}');
         return location.address!;
       }
       
       // Verificação adicional de segurança
       if (location.latitude == 0.0 && location.longitude == 0.0) {
-        print('  - Coordenadas inválidas');
         return 'Localização não disponível';
       }
       
       // Se não temos endereço ou é apenas coordenadas, tentar obter endereço novamente
       if (location.address == null || location.address!.isEmpty || 
           location.address!.contains('Localização:')) {
-        print('  - Endereço inválido, retornando coordenadas formatadas');
         // Retornar coordenadas formatadas de forma mais amigável com precisão
         String baseText = 'Localização: ${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)}';
         if (location.accuracy != null) {
@@ -360,10 +314,8 @@ class LocationProvider extends ChangeNotifier {
         return baseText;
       }
       
-      print('  - Retornando endereço final: ${location.address}');
       return location.address!;
     } catch (e) {
-      print('❌ Erro ao formatar endereço: $e');
       return 'Localização não disponível';
     }
   }
@@ -398,7 +350,6 @@ class LocationProvider extends ChangeNotifier {
       if (_currentLocation == null) return null;
       return _currentLocation!.city;
     } catch (e) {
-      print('Erro ao obter cidade: $e');
       return null;
     }
   }
@@ -409,7 +360,6 @@ class LocationProvider extends ChangeNotifier {
       if (_currentLocation == null) return null;
       return _currentLocation!.state;
     } catch (e) {
-      print('Erro ao obter estado: $e');
       return null;
     }
   }
@@ -424,7 +374,6 @@ class LocationProvider extends ChangeNotifier {
       
       return currentCity.toLowerCase().contains(cityName.toLowerCase());
     } catch (e) {
-      print('Erro ao verificar cidade: $e');
       return false;
     }
   }
@@ -439,7 +388,6 @@ class LocationProvider extends ChangeNotifier {
       
       return currentState.toLowerCase().contains(stateName.toLowerCase());
     } catch (e) {
-      print('Erro ao verificar estado: $e');
       return false;
     }
   }
