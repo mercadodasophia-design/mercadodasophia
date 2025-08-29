@@ -32,42 +32,50 @@ class _AdminAliExpressDSScreenState extends State<AdminAliExpressDSScreen> {
           .orderBy('saved_at', descending: true)
           .get();
       
-      setState(() {
-        _savedLinks = snapshot.docs.map((doc) {
-          final data = doc.data();
-          return {
-            'id': doc.id,
-            'link': data['link'] ?? '',
-            'notes': data['notes'] ?? '',
-            'saved_at': data['saved_at'] ?? '',
-            'status': data['status'] ?? 'pending',
-          };
-        }).toList();
-      });
+      if (mounted) {
+        setState(() {
+          _savedLinks = snapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'id': doc.id,
+              'link': data['link'] ?? '',
+              'notes': data['notes'] ?? '',
+              'saved_at': data['saved_at'] ?? '',
+              'status': data['status'] ?? 'pending',
+            };
+          }).toList();
+        });
+      }
       
       // Carregar produtos dos links salvos
       await _loadProductsFromLinks();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao carregar links: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao carregar links: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _loadProductsFromLinks() async {
     if (_savedLinks.isEmpty) {
-      setState(() {
-        _productCards = [];
-      });
+      if (mounted) {
+        setState(() {
+          _productCards = [];
+        });
+      }
       return;
     }
 
-    setState(() {
-      _isLoadingProducts = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoadingProducts = true;
+      });
+    }
 
     try {
       List<Map<String, dynamic>> products = [];
@@ -75,37 +83,43 @@ class _AdminAliExpressDSScreenState extends State<AdminAliExpressDSScreen> {
       for (final link in _savedLinks) {
         try {
           final productData = await AliExpressService.getProductDataByLink(link['link']);
-          if (productData != null && productData['success'] == true) {
+          if (productData != null && productData['success'] == true && productData['data'] != null) {
             products.add({
               ...productData['data'],
               'firebase_id': link['id'],
               'notes': link['notes'],
               'saved_at': link['saved_at'],
             });
+          } else {
+            print('Produto não encontrado ou erro: ${link['link']}');
           }
         } catch (e) {
           print('Erro ao carregar produto ${link['link']}: $e');
         }
       }
       
-      setState(() {
-        _productCards = products;
-      });
+      if (mounted) {
+        setState(() {
+          _productCards = products;
+        });
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao carregar produtos: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao carregar produtos: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoadingProducts = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingProducts = false;
+        });
+      }
     }
   }
-
-
 
   Future<void> _saveProductLink() async {
     if (_linkController.text.trim().isEmpty) {
@@ -135,8 +149,8 @@ class _AdminAliExpressDSScreenState extends State<AdminAliExpressDSScreen> {
           .collection('saved_product_links')
           .add(productData);
       
-             // Recarregar a lista e produtos
-       await _loadSavedLinks();
+      // Recarregar a lista e produtos
+      await _loadSavedLinks();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -156,9 +170,11 @@ class _AdminAliExpressDSScreenState extends State<AdminAliExpressDSScreen> {
         ),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -198,339 +214,192 @@ class _AdminAliExpressDSScreenState extends State<AdminAliExpressDSScreen> {
         ],
       ),
       drawer: _buildDrawer(),
-             body: SingleChildScrollView(
-         child: Column(
-           children: [
-                           // Área dos Produtos dos Links Salvos
-              Container(
-                margin: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(8),
-                          topRight: Radius.circular(8),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.shopping_bag, color: Colors.blue),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Produtos dos Links Salvos',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const Spacer(),
-                          ElevatedButton.icon(
-                            onPressed: () async {
-                              const url = 'https://ds.aliexpress.com/find-products';
-                              if (await canLaunchUrl(Uri.parse(url))) {
-                                await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                              }
-                            },
-                            icon: const Icon(Icons.open_in_new),
-                            label: const Text('Abrir AliExpress DS'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      height: 400,
-                      width: double.infinity,
-                      color: Colors.white,
-                      child: _isLoadingProducts
-                          ? const Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  CircularProgressIndicator(),
-                                  SizedBox(height: 16),
-                                  Text('Carregando produtos...'),
-                                ],
-                              ),
-                            )
-                          : _productCards.isEmpty
-                              ? Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.shopping_bag_outlined,
-                                        size: 64,
-                                        color: Colors.grey[400],
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'Nenhum produto carregado',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Salve links de produtos para vê-los aqui',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[500],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : GridView.builder(
-                                  padding: const EdgeInsets.all(16),
-                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    childAspectRatio: 0.8,
-                                    crossAxisSpacing: 16,
-                                    mainAxisSpacing: 16,
-                                  ),
-                                  itemCount: _productCards.length,
-                                  itemBuilder: (context, index) {
-                                    return _buildProductCard(_productCards[index]);
-                                  },
-                                ),
-                    ),
-                  ],
-                ),
-              ),
-             
-             // Formulário para salvar link (sempre visível)
-             _buildSaveForm(),
-             
-             // Lista de links salvos
-             Container(
-               height: 300,
-               child: _buildSavedLinksList(),
-             ),
-           ],
-         ),
-       ),
-    );
-  }
-
-    Widget _buildSavedLinksList() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
         children: [
-          Row(
-            children: [
-              const Icon(Icons.list, color: Colors.blue),
-              const SizedBox(width: 8),
-              const Text(
-                'Links Salvos',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+          // Formulário para salvar link (fixo no topo)
+          _buildSaveForm(),
+          
+          // Área dos Produtos dos Links Salvos (com altura automática e rolagem)
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey[300]!),
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              const Spacer(),
-              Text(
-                '${_savedLinks.length} link${_savedLinks.length != 1 ? 's' : ''}',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (_savedLinks.isEmpty)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.link_off,
-                      size: 64,
-                      color: Colors.grey[400],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Nenhum link salvo ainda',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.grey[600],
+              child: Column(
+                children: [
+                  // Header da seção de produtos
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        topRight: Radius.circular(12),
+                      ),
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey[300]!),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Navegue pelo AliExpress DS na área acima, copie o link do produto e cole no campo abaixo',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            Expanded(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _savedLinks.length,
-                itemBuilder: (context, index) {
-                  final link = _savedLinks[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      leading: const Icon(Icons.link, color: Colors.blue),
-                      title: Text(
-                        link['link'] ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (link['notes']?.isNotEmpty == true)
-                            Text(
-                              link['notes'],
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Salvo em: ${_formatDate(link['saved_at'])}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
+                    child: Row(
+                      children: [
+                        Icon(Icons.shopping_bag, color: Colors.blue[700]),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Produtos dos Links Salvos',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                              ),
+                              Text(
+                                '${_productCards.length} produto${_productCards.length != 1 ? 's' : ''} carregado${_productCards.length != 1 ? 's' : ''}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            const url = 'https://ds.aliexpress.com/find-products';
+                            if (await canLaunchUrl(Uri.parse(url))) {
+                              await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                            }
+                          },
+                          icon: const Icon(Icons.open_in_new, size: 18),
+                          label: const Text('Abrir AliExpress DS'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue[700],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                        ],
-                      ),
-                      trailing: PopupMenuButton<String>(
-                        onSelected: (value) {
-                          if (value == 'open') {
-                            _openLink(link['link']);
-                          } else if (value == 'delete') {
-                            _deleteLink(index);
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(
-                            value: 'open',
-                            child: Row(
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Grid de produtos com rolagem
+                  Expanded(
+                    child: _isLoadingProducts
+                        ? const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.open_in_new),
-                                SizedBox(width: 8),
-                                Text('Abrir Link'),
+                                CircularProgressIndicator(),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Carregando produtos...',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                               ],
                             ),
-                          ),
-                          const PopupMenuItem(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                Icon(Icons.delete, color: Colors.red),
-                                SizedBox(width: 8),
-                                Text('Excluir', style: TextStyle(color: Colors.red)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+                          )
+                        : _productCards.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.shopping_bag_outlined,
+                                      size: 80,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Text(
+                                      'Nenhum produto carregado',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Salve links de produtos para vê-los aqui',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.grey[500],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    ElevatedButton.icon(
+                                      onPressed: () async {
+                                        const url = 'https://ds.aliexpress.com/find-products';
+                                        if (await canLaunchUrl(Uri.parse(url))) {
+                                          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                        }
+                                      },
+                                      icon: const Icon(Icons.explore),
+                                      label: const Text('Explorar AliExpress DS'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue[700],
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : GridView.builder(
+                                padding: const EdgeInsets.all(16),
+                                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                                  maxCrossAxisExtent: 250, // Máximo 250px por card
+                                  childAspectRatio: 0.75,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                ),
+                                itemCount: _productCards.length,
+                                itemBuilder: (context, index) {
+                                  return _buildProductCard(_productCards[index]);
+                                },
+                              ),
+                  ),
+                ],
               ),
             ),
+          ),
         ],
       ),
     );
   }
 
-  String _formatDate(String? dateString) {
-    if (dateString == null) return 'Data desconhecida';
-    try {
-      final date = DateTime.parse(dateString);
-      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} às ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return 'Data inválida';
-    }
-  }
-
-  Future<void> _openLink(String? url) async {
-    if (url == null) return;
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível abrir o link'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> _deleteLink(int index) async {
-    final link = _savedLinks[index];
-    final linkId = link['id'];
-    
-    if (linkId != null) {
-      try {
-        await FirebaseFirestore.instance
-            .collection('saved_product_links')
-            .doc(linkId)
-            .delete();
-        
-        setState(() {
-          _savedLinks.removeAt(index);
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Link removido com sucesso'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao remover link: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   Widget _buildSaveForm() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
@@ -540,56 +409,75 @@ class _AdminAliExpressDSScreenState extends State<AdminAliExpressDSScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.link, color: Colors.blue),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.link, color: Colors.blue[700]),
+              ),
+              const SizedBox(width: 12),
               const Text(
                 'Salvar Link do Produto',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           TextField(
             controller: _linkController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Link do Produto',
               hintText: 'Cole aqui o link do produto do AliExpress',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.link),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              prefixIcon: const Icon(Icons.link),
+              filled: true,
+              fillColor: Colors.grey[50],
             ),
             maxLines: 2,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           TextField(
             controller: _notesController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Observações (opcional)',
               hintText: 'Adicione observações sobre o produto',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.note),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              prefixIcon: const Icon(Icons.note),
+              filled: true,
+              fillColor: Colors.grey[50],
             ),
             maxLines: 3,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: _isLoading ? null : _saveProductLink,
               icon: _isLoading 
                 ? const SizedBox(
-                    width: 16,
-                    height: 16,
+                    width: 18,
+                    height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.save),
               label: Text(_isLoading ? 'Salvando...' : 'Salvar Link'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+                backgroundColor: Colors.blue[700],
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 2,
               ),
             ),
           ),
@@ -756,112 +644,296 @@ class _AdminAliExpressDSScreenState extends State<AdminAliExpressDSScreen> {
     final ratings = product['ratings'] ?? {};
     final images = product['images'] ?? [];
     final variations = product['variations'] ?? [];
+    final priceInfo = product['price_info'] ?? {};
+    final storeInfo = product['store_info'] ?? {};
+    final packageInfo = product['package_info'] ?? {};
+    final notes = product['notes'] ?? '';
     
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Container(
+      width: 230, // Largura fixa de 230px
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
       child: InkWell(
         onTap: () => _showProductModal(product),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Imagem do produto
-            Expanded(
-              flex: 3,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
-                  ),
-                  color: Colors.grey[100],
+            Container(
+              height: 180,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
                 ),
-                child: images.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(12),
-                          topRight: Radius.circular(12),
-                        ),
-                        child: Image.network(
-                          images.first,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Center(
-                              child: Icon(
-                                Icons.image_not_supported,
-                                size: 48,
-                                color: Colors.grey,
+                color: Colors.grey[50],
+              ),
+              child: images.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                      child: Stack(
+                        children: [
+                          Image.network(
+                            images.first,
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  borderRadius: const BorderRadius.only(
+                                    topLeft: Radius.circular(16),
+                                    topRight: Radius.circular(16),
+                                  ),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    size: 48,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          // Badge de destaque
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[700],
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            );
-                          },
+                              child: const Text(
+                                'DS',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Badge de observações se houver
+                          if (notes.isNotEmpty)
+                            Positioned(
+                              top: 8,
+                              left: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange[600],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.note,
+                                  color: Colors.white,
+                                  size: 12,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    )
+                  : Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          topRight: Radius.circular(16),
                         ),
-                      )
-                    : const Center(
+                      ),
+                      child: const Center(
                         child: Icon(
                           Icons.image_not_supported,
                           size: 48,
                           color: Colors.grey,
                         ),
                       ),
-              ),
+                    ),
             ),
             
             // Informações do produto
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      basicInfo['title'] ?? 'Sem título',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Título do produto
+                  Text(
+                    basicInfo['title'] ?? 'Sem título',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      height: 1.3,
                     ),
-                    const SizedBox(height: 4),
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Avaliações
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.amber[50],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.star,
+                              size: 14,
+                              color: Colors.amber[600],
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              '${ratings['avg_evaluation_rating'] ?? '0'}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.amber[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '(${ratings['evaluation_count'] ?? '0'})',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Preço (se disponível)
+                  if (priceInfo['sale_price'] != null)
+                    Row(
+                      children: [
+                        Text(
+                          'R\$ ${priceInfo['sale_price']}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green[700],
+                          ),
+                        ),
+                        if (priceInfo['original_price'] != null && 
+                            priceInfo['original_price'] != priceInfo['sale_price'])
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: Text(
+                              'R\$ ${priceInfo['original_price']}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500],
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  
+                  const SizedBox(height: 8),
+                  
+                  // Informações da loja
+                  if (storeInfo['store_name'] != null)
                     Row(
                       children: [
                         Icon(
-                          Icons.star,
-                          size: 16,
-                          color: Colors.amber[600],
+                          Icons.store,
+                          size: 12,
+                          color: Colors.grey[600],
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          '${ratings['avg_evaluation_rating'] ?? '0'}/5',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '(${ratings['evaluation_count'] ?? '0'})',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
+                        Expanded(
+                          child: Text(
+                            storeInfo['store_name'],
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    if (variations.isNotEmpty)
-                      Text(
-                        '${variations.length} variações',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue[600],
+                  
+                  const SizedBox(height: 8),
+                  
+                  // Informações adicionais
+                  Row(
+                    children: [
+                      if (variations.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${variations.length} var.',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.blue[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
+                      if (packageInfo['gross_weight'] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green[50],
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${packageInfo['gross_weight']}kg',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.green[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                      const Spacer(),
+                      Icon(
+                        Icons.touch_app,
+                        size: 16,
+                        color: Colors.grey[400],
                       ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
@@ -914,10 +986,13 @@ class ProductDetailModal extends StatelessWidget {
     final ratings = product['ratings'] ?? {};
     final storeInfo = product['store_info'] ?? {};
     final packageInfo = product['package_info'] ?? {};
+    final priceInfo = product['price_info'] ?? {};
     final variations = product['variations'] ?? [];
     final properties = product['properties'] ?? [];
     final images = product['images'] ?? [];
     final notes = product['notes'] ?? '';
+    final freightInfo = product['freight_info'] ?? {};
+    final specialInfo = product['special_info'] ?? {};
 
     return Dialog(
       child: Container(
@@ -1007,8 +1082,24 @@ class ProductDetailModal extends StatelessWidget {
                         'ID: ${basicInfo['product_id'] ?? 'N/A'}',
                         'Categoria: ${basicInfo['category_id'] ?? 'N/A'}',
                         'Status: ${basicInfo['product_status_type'] ?? 'N/A'}',
+                        'Tipo: ${basicInfo['product_type'] ?? 'N/A'}',
+                        'Marca: ${basicInfo['brand'] ?? 'N/A'}',
                       ],
                     ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Preços
+                    if (priceInfo.isNotEmpty)
+                      _buildInfoSection(
+                        'Informações de Preço',
+                        [
+                          'Preço de venda: R\$ ${priceInfo['sale_price'] ?? 'N/A'}',
+                          'Preço original: R\$ ${priceInfo['original_price'] ?? 'N/A'}',
+                          'Moeda: ${priceInfo['currency'] ?? 'BRL'}',
+                          'Desconto: ${priceInfo['discount'] ?? 'N/A'}',
+                        ],
+                      ),
                     
                     const SizedBox(height: 16),
                     
@@ -1016,9 +1107,10 @@ class ProductDetailModal extends StatelessWidget {
                     _buildInfoSection(
                       'Avaliações',
                       [
-                        'Avaliação: ${ratings['avg_evaluation_rating'] ?? '0'}/5',
+                        'Avaliação média: ${ratings['avg_evaluation_rating'] ?? '0'}/5',
                         'Total de avaliações: ${ratings['evaluation_count'] ?? '0'}',
                         'Vendas: ${ratings['sales_count'] ?? '0'}',
+                        'Avaliações positivas: ${ratings['positive_rate'] ?? 'N/A'}%',
                       ],
                     ),
                     
@@ -1031,6 +1123,8 @@ class ProductDetailModal extends StatelessWidget {
                         'Nome: ${storeInfo['store_name'] ?? 'N/A'}',
                         'ID: ${storeInfo['store_id'] ?? 'N/A'}',
                         'País: ${storeInfo['store_country_code'] ?? 'N/A'}',
+                        'Avaliação da loja: ${storeInfo['store_rating'] ?? 'N/A'}',
+                        'Anos de atividade: ${storeInfo['store_years'] ?? 'N/A'}',
                       ],
                     ),
                     
@@ -1040,11 +1134,42 @@ class ProductDetailModal extends StatelessWidget {
                     _buildInfoSection(
                       'Informações do Pacote',
                       [
-                        'Peso: ${packageInfo['gross_weight'] ?? 'N/A'}',
-                        'Dimensões: ${packageInfo['package_length'] ?? 'N/A'} x ${packageInfo['package_width'] ?? 'N/A'} x ${packageInfo['package_height'] ?? 'N/A'}',
-                        'Tipo: ${packageInfo['package_type'] ?? 'N/A'}',
+                        'Peso bruto: ${packageInfo['gross_weight'] ?? 'N/A'} kg',
+                        'Comprimento: ${packageInfo['package_length'] ?? 'N/A'} cm',
+                        'Largura: ${packageInfo['package_width'] ?? 'N/A'} cm',
+                        'Altura: ${packageInfo['package_height'] ?? 'N/A'} cm',
+                        'Tipo de pacote: ${packageInfo['package_type'] ?? 'N/A'}',
+                        'Volume: ${packageInfo['package_volume'] ?? 'N/A'}',
                       ],
                     ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Informações de frete
+                    if (freightInfo.isNotEmpty)
+                      _buildInfoSection(
+                        'Informações de Frete',
+                        [
+                          'Frete grátis: ${freightInfo['free_shipping'] == true ? 'Sim' : 'Não'}',
+                          'Tempo de entrega: ${freightInfo['delivery_time'] ?? 'N/A'}',
+                          'Custo do frete: R\$ ${freightInfo['shipping_cost'] ?? 'N/A'}',
+                          'Método de envio: ${freightInfo['shipping_method'] ?? 'N/A'}',
+                        ],
+                      ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Informações especiais
+                    if (specialInfo.isNotEmpty)
+                      _buildInfoSection(
+                        'Informações Especiais',
+                        [
+                          'Certificações: ${specialInfo['certifications'] ?? 'N/A'}',
+                          'Garantia: ${specialInfo['warranty'] ?? 'N/A'}',
+                          'Material: ${specialInfo['material'] ?? 'N/A'}',
+                          'Origem: ${specialInfo['origin'] ?? 'N/A'}',
+                        ],
+                      ),
                     
                     const SizedBox(height: 16),
                     
@@ -1052,10 +1177,11 @@ class ProductDetailModal extends StatelessWidget {
                     if (variations.isNotEmpty)
                       _buildInfoSection(
                         'Variações (${variations.length})',
-                        variations.take(5).map((variation) {
+                        variations.take(10).map((variation) {
                           final skuProps = variation['ae_sku_property_dtos']?['ae_sku_property_d_t_o'] ?? [];
                           final props = skuProps.map((prop) => '${prop['sku_property_name']}: ${prop['sku_property_value']}').join(', ');
-                          return 'SKU ${variation['sku_id']}: ${variation['offer_sale_price']} - ${props}';
+                          final price = variation['offer_sale_price'] ?? 'N/A';
+                          return 'SKU ${variation['sku_id']}: R\$ $price - ${props}';
                         }).toList(),
                       ),
                     
@@ -1065,7 +1191,7 @@ class ProductDetailModal extends StatelessWidget {
                     if (properties.isNotEmpty)
                       _buildInfoSection(
                         'Propriedades (${properties.length})',
-                        properties.take(10).map((prop) => '${prop['attr_name']}: ${prop['attr_value']}').toList(),
+                        properties.take(15).map((prop) => '${prop['attr_name']}: ${prop['attr_value']}').toList(),
                       ),
                     
                     const SizedBox(height: 16),
@@ -1083,7 +1209,7 @@ class ProductDetailModal extends StatelessWidget {
               ),
             ),
             
-            // Footer com botão de importar
+            // Footer com botões
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1105,6 +1231,22 @@ class ProductDetailModal extends StatelessWidget {
                       label: const Text('Importar Produto'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        // TODO: Implementar ação de abrir no AliExpress
+                      },
+                      icon: const Icon(Icons.open_in_new),
+                      label: const Text('Abrir no AliExpress'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
